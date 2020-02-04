@@ -4,8 +4,8 @@ A socket server that handle connecting clients
 
 Entering any line of input at the terminal will exit the server.
 
-USAGE:   socket-server.py <PORT>
-EXAMPLE: socket-server.py 8000
+USAGE:   python socket-server.py <PORT>
+EXAMPLE: python socket-server.py 8000
 '''
 import socket
 import select   # handle multiple clients at a time.
@@ -38,8 +38,11 @@ server.bind((host,port))
 # enable socket to accept connections
 server.listen(5)
 
-input = [server,sys.stdin]
+# input = [server,sys.stdin]
+input = [server]
 running = 1
+client_count = 0
+
 while running:
     inputready,outputready,exceptready = select.select(input,[],[])
 
@@ -49,7 +52,9 @@ while running:
             # handle the server socket
             
             new_socket_conn, ip_addr = server.accept()
-            print('client is at', ip_addr)
+
+            ++client_count
+            print('client #',client_count, ' is at', ip_addr)
 
             input.append(new_socket_conn)
 
@@ -75,20 +80,3 @@ while running:
                 input.remove(s)
 
 server.close()
-
-# while (1):
-#     # get conn request
-#     new_socket_conn, ip_addr = s.accept()
-#     print('client is at', ip_addr)
-    
-#     # receive data in byte
-#     data = new_socket_conn.recv(1000000)
-
-#     updata = to_upper(data.decode('utf-8'))
-    
-#     print('sending data ', updata)
-    
-#     new_socket_conn.send(updata.encode('utf-8'))
-
-#     new_socket_conn.close()
-
