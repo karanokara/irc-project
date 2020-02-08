@@ -26,26 +26,41 @@ def broadcast(socket, room, client, msg):
     socket.send(msg)
 
 
+''' --------------------- Message functions ---------------------------- '''
 
 
-def USER():
+def USER(msg, client):
     '''Creat a user to the current login user'''
-    return 1
+    data = 'user'
+    client.send(data.encode('utf-8'))
 
-def LIST():
+def LIST(msg, client):
     '''Listing rooms'''
-    return 1
+    data = 'list'
+    client.send(data.encode('utf-8'))
 
-def ROOM():
-    return 1
+def ROOM(msg, client):
+    '''Create a rooms'''
 
-def JOIN():
+    data = 'ROOM'
+    client.send(data.encode('utf-8'))
+
+
+def JOIN(msg, client):
     '''Join a room'''
-    return 1
+    data = 'JOIN'
+    client.send(data.encode('utf-8'))
+    
 
-def LEVE():
+def LEVE(msg, client):
     '''Leave a room'''
-    return 1
+    data = 'LEVE'
+    client.send(data.encode('utf-8'))
+    
+
+
+
+''' --------------------- Tool functions ---------------------------- '''
 
 
 # a function table
@@ -57,13 +72,24 @@ msg_options = {
     'LEVE': LEVE
 }
 
+def to_upper(string):
+    upper_case = ""
+    for character in string:
+         if 'a' <= character <= 'z':
+             location = ord(character) - ord('a')
+             new_ascii = location + ord('A')
+             character = chr(new_ascii)
+         upper_case = upper_case + character
+    return upper_case
+
+
 def analyze_msg(msg, client):
     '''A function to analyze the msg and call an appropriate function
         using a function table msg_options
     '''
-    directive = msg[0:4]
-    leaving_msg = msg[6:]
-    msg_options[directive](leaving_msg, client)
+    directive = to_upper(msg[0:4])
+    later_msg = msg[5:]
+    msg_options[directive](later_msg, client)
 
 
 def disconnet_client(input_list, client_count, input):
@@ -83,6 +109,7 @@ def disconnet_client(input_list, client_count, input):
 def get_client_info(client_list, client):
 
     return {}
+
 
 
 ''' --------------------- Program begin here ---------------------------- '''
@@ -147,7 +174,7 @@ while running:
                 data = data.decode('utf-8').rstrip()
                 
                 # log the msg
-                print('Receive data from client #' + str( input_list.index(input)) + ':', data)
+                print('Received data from client #' + str( input_list.index(input)) + ':', data)
                 
                 # analyze the msg and call a appropriate function to handle it
                 analyze_msg(data, input)
