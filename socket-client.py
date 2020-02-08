@@ -2,27 +2,27 @@
 '''
 A socket client that can make a connection
 
+USAGE:   python3 socket-client.py <HOST> <PORT>
 USAGE:   python socket-client.py <HOST> <PORT>
+EXAMPLE: python3 socket-client.py localhost 2999
 EXAMPLE: python socket-client.py localhost 2999
 '''
 import socket
 import sys
 import select  # supports asynchronous I/O on multiple file descriptors
 
-# if len(sys.argv) < 4:
-#     print ("USAGE: python socket-client.py <HOST> <PORT> <MESSAGE>")
-#     sys.exit(0)
+if len(sys.argv) < 3:
+    print ("USAGE: python3 socket-client.py <HOST> <PORT>")
+    sys.exit(0)
 
 # A client socket
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # conn timeout to 5 seconds
-client.settimeout(5)
+# client.settimeout(5)
 
-# host = sys.argv[1]
-# port = int(sys.argv[2])
-host = '192.168.0.2'
-port = 2999
+host = sys.argv[1]
+port = int(sys.argv[2])
 size = 1024 * 100  # accept 100k
 username = 'client'
 
@@ -32,16 +32,34 @@ def prompt(username):
     '''
     print(f'@{username} $ ', end='', flush=True)    # don't go to next line, allow input
 
-    
+
+def greet_client(client_socket,username):
+    ''' send server the name of client'''
+
+    print(f'Successfully connected, enter your name: ', end='', flush=True)
+    username = sys.stdin.readline().rstrip()
+    send_data = 'CLIENT ' + username
+    client_socket.send(send_data.encode('utf-8'))
+
+    res_data = client_socket.recv(size)
+    print(res_data.decode('utf-8'))
+    print()
+    prompt(username)
+    return username
+
+
 # try initiate conn on a socket
 try:
     client.connect((host, port))
 except:
     sys.exit(f'Error: Fail to connect to host: {host} on port: {port}.')
 
-# a list of input steam
+# a list of input steams
 input_list = [client, sys.stdin]    # if executed in linux
 # input_list = [client]   # in window
+
+# greet client to the server
+username = greet_client(client, username)
 
 while (1):
     # Get the list sockets that are ready to read
@@ -50,32 +68,37 @@ while (1):
     # loop the input that get in
     for input in read_ready:
 
-        # input is from the client socket from remote server
         if input == client:
+            # input is from the client socket from remote server
 
             # receive data
-            res_data = input.recv(size)
+            try:
+                res_data = input.recv(size)
+            except:
+                # can't receive from server
+                sys.exit('\n<<<< Disconnected from the server. >>>>')
 
-            # print data in a new line
-            print()
-            print(res_data.decode('utf-8'))
-            
-            print()
-            prompt(username)
-            # print ('received', len(res_data), ' bytes')
+            if res_data:
+                # print data in a new line
+                print("\n")
+                print(res_data.decode('utf-8'))
+                print()
+
+                prompt(username)
+                # print ('received', len(res_data), ' bytes')
+            else:
+                # there is no data, server is disconnected
+                sys.exit('\n<<<< Disconnected from the server. >>>>')
 
         else:
-            # from client input
+            # input is from client keyboard input
             send_data = sys.stdin.readline()
 
             if send_data == 'quit\n':
                 client.close()
-                sys.exit('<<<< You exit successfully.')
-
-            send_data += '\r\n'
+                sys.exit('<<<< You exit successfully. >>>>')
             
             # send data
             client.send(send_data.encode('utf-8'))
-            prompt(username)
 
 

@@ -11,26 +11,22 @@ import socket
 import select   # handle multiple clients at a time.
 import sys
 
-def to_upper(string):
-    upper_case = ""
-    for character in string:
-         if 'a' <= character <= 'z':
-             location = ord(character) - ord('a')
-             new_ascii = location + ord('A')
-             character = chr(new_ascii)
-         upper_case = upper_case + character
-    return upper_case
 
 # if len(sys.argv) < 2:
 #     print ("USAGE:   echo_server_sockets.py <PORT>")
 #     sys.exit(0)
 
+def broadcast(socket, room, client, msg):
+    '''Broadcase a message to all clients in a room
+    '''
+    print(f'Broadcast [{msg}] to room [{room}]')
+    msg = msg.encode('utf-8')
+    socket.send(msg)
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = ''
 # port = int(sys.argv[1])
 port = 2999
-backlog = 5
 size = 1024 * 100       # accept 100k
 
 # bind local source port to socket
@@ -59,8 +55,9 @@ while running:
             new_socket_conn, ip_addr = server.accept()
 
             client_count += 1
-            print('client #',client_count, ' is at', ip_addr)
+            print('client #' + str(client_count) + ' is at', ip_addr)
 
+            # add new client to the listenning list
             input_list.append(new_socket_conn)
 
         elif input == sys.stdin:
@@ -74,20 +71,26 @@ while running:
 
             data = input.recv(size)
             if data:
-
-                updata = to_upper(data.decode('utf-8'))
+                # there is any data from client
+                updata = data.decode('utf-8')
             
                 print('sending data ', updata)
                 data_from = '@Server >'
                 send_data = data_from + updata
                 input.send(send_data.encode('utf-8'))
             else:
-                # close socket conn
+                # there is no data, client disconnects
 
                 # find out who disconnect
-                print('client #', input_list.index(input), ' disconnected.')
+                print('client #' + str( input_list.index(input)) + ' disconnected.')
                 
+                # inform clients in a same room who has disconnected
+
+
+                # close socket conn
                 input.close()
                 input_list.remove(input)
+                client_count -= 1
+
 
 server.close()
