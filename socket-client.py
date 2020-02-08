@@ -8,27 +8,39 @@ EXAMPLE: python socket-client.py localhost 8000 Hello
 import socket
 import sys
 
-if len(sys.argv) < 4:
-    print ("USAGE: echo_client_sockets.py <HOST> <PORT> <MESSAGE>")
-    sys.exit(0)
+# if len(sys.argv) < 4:
+#     print ("USAGE: echo_client_sockets.py <HOST> <PORT> <MESSAGE>")
+#     sys.exit(0)
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-host = sys.argv[1]
-port = int(sys.argv[2])
+# host = sys.argv[1]
+# port = int(sys.argv[2])
+host = 'localhost'
+port = 2999
 close = 0
 
-# initiate conn on a socket
-s.connect((host,port))
+# try initiate conn on a socket
+try:
+    client_socket.connect((host, port))
+except:
+    sys.exit(f'Error: Fail to connect to host: {host} on port: {port}.')
 
-while(not close):
+while (not close):
+    
+    print('Enter: ', end='', flush=True)
+    data = sys.stdin.readline()
+
     # send data
-    s.send(sys.argv[3].encode('utf-8'))
+    client_socket.send(data.encode('utf-8'))
 
     # receive data in byte
-    data = s.recv(10000000)
+    res_data = client_socket.recv(10000000)
 
-    print (data.decode('utf-8'))
-    print ('received', len(data), ' bytes')
+    print (res_data.decode('utf-8'))
+    print ('received', len(res_data), ' bytes')
 
-    s.close()
+    if data is 'quit':
+        close = True
+
+client_socket.close()

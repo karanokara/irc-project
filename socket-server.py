@@ -21,14 +21,15 @@ def to_upper(string):
          upper_case = upper_case + character
     return upper_case
 
-if len(sys.argv) < 2:
-    print ("USAGE:   echo_server_sockets.py <PORT>")
-    sys.exit(0)
+# if len(sys.argv) < 2:
+#     print ("USAGE:   echo_server_sockets.py <PORT>")
+#     sys.exit(0)
 
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = ''
-port = int(sys.argv[1])
+# port = int(sys.argv[1])
+port = 2999
 backlog = 5
 size = 1024 * 100       # accept 100k
 
@@ -42,6 +43,8 @@ server.listen(5)
 input = [server]
 running = 1
 client_count = 0
+
+print('Server is now running ...')
 
 while running:
     inputready,outputready,exceptready = select.select(input,[],[])
