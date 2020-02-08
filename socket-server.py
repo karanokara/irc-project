@@ -4,8 +4,10 @@ A socket server that handle connecting clients
 
 Entering any line of input at the terminal will exit the server.
 
+USAGE:   python3 socket-server.py <PORT>
 USAGE:   python socket-server.py <PORT>
-EXAMPLE: python socket-server.py 8000
+EXAMPLE: python3 socket-server.py 2999
+EXAMPLE: python socket-server.py 2999
 '''
 import socket
 import select   # handle multiple clients at a time.
@@ -23,22 +25,88 @@ def broadcast(socket, room, client, msg):
     msg = msg.encode('utf-8')
     socket.send(msg)
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+
+
+def USER():
+    '''Creat a user to the current login user'''
+    return 1
+
+def LIST():
+    '''Listing rooms'''
+    return 1
+
+def ROOM():
+    return 1
+
+def JOIN():
+    '''Join a room'''
+    return 1
+
+def LEVE():
+    '''Leave a room'''
+    return 1
+
+
+# a function table
+msg_options = {
+    'USER': USER,
+    'LIST': LIST,
+    'ROOM': ROOM,
+    'JOIN': JOIN,
+    'LEVE': LEVE
+}
+
+def analyze_msg(msg, client):
+    '''A function to analyze the msg and call an appropriate function
+        using a function table msg_options
+    '''
+    directive = msg[0:4]
+    leaving_msg = msg[6:]
+    msg_options[directive](leaving_msg, client)
+
+
+def disconnet_client(input_list, client_count, input):
+    ''' find out who disconnect'''
+
+    print('client #' + str( input_list.index(input)) + ' disconnected.')
+    
+    # inform clients in a same room who has disconnected
+    # TODO
+
+    # close socket conn
+    input.close()
+    input_list.remove(input)
+    client_count -= 1
+
+
+def get_client_info(client_list, client):
+
+    return {}
+
+
+''' --------------------- Program begin here ---------------------------- '''
+
+
+
 host = ''
 # port = int(sys.argv[1])
 port = 2999
 size = 1024 * 100       # accept 100k
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a socket server
+# input_list = [server,sys.stdin]     # linux
+input_list = [server]               # window
+running = 1
+client_count = 0
+client_list = []
+room_list = []
+
 
 # bind local source port to socket
 server.bind((host,port))
 
 # enable socket to accept connections
 server.listen(5)
-
-# input = [server,sys.stdin]
-input_list = [server]
-running = 1
-client_count = 0
 
 print('Server is now running ...')
 
@@ -64,33 +132,31 @@ while running:
             # handle standard input
 
             junk = sys.stdin.readline()
-            running = 0 
-
+            running = 0
+            break
         else:
-            # handle socket conn, s is a socket conn
-
-            data = input.recv(size)
+            # handle input comes from socket conn
+            try:
+                data = input.recv(size)
+            except:
+                # couldn't receive data, client disconnects
+                disconnet_client(input_list, client_count, input)
+                
             if data:
                 # there is any data from client
-                updata = data.decode('utf-8')
-            
-                print('sending data ', updata)
-                data_from = '@Server >'
-                send_data = data_from + updata
-                input.send(send_data.encode('utf-8'))
+                data = data.decode('utf-8').rstrip()
+                
+                # log the msg
+                print('Receive data from client #' + str( input_list.index(input)) + ':', data)
+                
+                # analyze the msg and call a appropriate function to handle it
+                analyze_msg(data, input)
+
+                # send_data = data_from + updata
+                # input.send(send_data.encode('utf-8'))
             else:
                 # there is no data, client disconnects
+                disconnet_client(input_list, client_count, input)
 
-                # find out who disconnect
-                print('client #' + str( input_list.index(input)) + ' disconnected.')
                 
-                # inform clients in a same room who has disconnected
-
-
-                # close socket conn
-                input.close()
-                input_list.remove(input)
-                client_count -= 1
-
-
 server.close()

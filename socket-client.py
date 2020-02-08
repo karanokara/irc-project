@@ -7,7 +7,7 @@ USAGE:   python socket-client.py <HOST> <PORT>
 EXAMPLE: python3 socket-client.py localhost 2999
 EXAMPLE: python socket-client.py localhost 2999
 '''
-import socket
+import socket   # the socket API to creat a "door"
 import sys
 import select  # supports asynchronous I/O on multiple file descriptors
 
@@ -38,11 +38,12 @@ def greet_client(client_socket,username):
 
     print(f'Successfully connected, enter your name: ', end='', flush=True)
     username = sys.stdin.readline().rstrip()
-    send_data = 'CLIENT ' + username
+    send_data = 'USER ' + username
     client_socket.send(send_data.encode('utf-8'))
 
-    res_data = client_socket.recv(size)
-    print(res_data.decode('utf-8'))
+    res_data = client_socket.recv(size).decode('utf-8').rstrip()
+    print()
+    print(res_data)
     print()
     prompt(username)
     return username
