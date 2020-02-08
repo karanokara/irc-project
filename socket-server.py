@@ -40,28 +40,30 @@ server.bind((host,port))
 server.listen(5)
 
 # input = [server,sys.stdin]
-input = [server]
+input_list = [server]
 running = 1
 client_count = 0
 
 print('Server is now running ...')
 
 while running:
-    inputready,outputready,exceptready = select.select(input,[],[])
+    # code stop below
+    # once there is client socket conn, code move forward
+    read_ready,write_ready,except_ready = select.select(input_list,[],[])
 
-    for s in inputready:
+    for input in read_ready:
 
-        if s == server:
+        if input == server:
             # handle the server socket
             
             new_socket_conn, ip_addr = server.accept()
 
-            ++client_count
+            client_count += 1
             print('client #',client_count, ' is at', ip_addr)
 
-            input.append(new_socket_conn)
+            input_list.append(new_socket_conn)
 
-        elif s == sys.stdin:
+        elif input == sys.stdin:
             # handle standard input
 
             junk = sys.stdin.readline()
@@ -70,16 +72,22 @@ while running:
         else:
             # handle socket conn, s is a socket conn
 
-            data = s.recv(size)
+            data = input.recv(size)
             if data:
 
                 updata = to_upper(data.decode('utf-8'))
             
                 print('sending data ', updata)
-                s.send(updata.encode('utf-8'))
+                data_from = '@Server >'
+                send_data = data_from + updata
+                input.send(send_data.encode('utf-8'))
             else:
                 # close socket conn
-                s.close()
-                input.remove(s)
+
+                # find out who disconnect
+                print('client #', input_list.index(input), ' disconnected.')
+                
+                input.close()
+                input_list.remove(input)
 
 server.close()
