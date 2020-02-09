@@ -30,7 +30,7 @@ username = 'client'
 def prompt(username):
     '''A function to print out prompt for client
     '''
-    print(f'@{username} $ ', end='', flush=True)    # don't go to next line, allow input
+    print(f'>{username} $ ', end='', flush=True)    # don't go to next line, allow input
 
 
 def greet_client(client_socket,username):
@@ -41,7 +41,12 @@ def greet_client(client_socket,username):
     send_data = 'USER ' + username
     client_socket.send(send_data.encode('utf-8'))
 
-    res_data = client_socket.recv(size).decode('utf-8').rstrip()
+    try:
+        res_data = client_socket.recv(size).decode('utf-8').rstrip()
+    except:
+        # can't receive from server
+        sys.exit('\n<<<< Disconnected from the server. >>>>')
+    
     print()
     print(res_data)
     print()
@@ -56,8 +61,8 @@ except:
     sys.exit(f'Error: Fail to connect to host: {host} on port: {port}.')
 
 # a list of input steams
-input_list = [client, sys.stdin]    # if executed in linux
-# input_list = [client]   # in window
+# input_list = [client, sys.stdin]    # if executed in linux
+input_list = [client]   # in window
 
 # greet client to the server
 username = greet_client(client, username)

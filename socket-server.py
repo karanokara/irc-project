@@ -18,42 +18,64 @@ import sys
 #     print ("USAGE:   echo_server_sockets.py <PORT>")
 #     sys.exit(0)
 
-def broadcast(socket, room, client, msg):
-    '''Broadcase a message to all clients in a room
-    '''
-    print(f'Broadcast [{msg}] to room [{room}]')
-    msg = msg.encode('utf-8')
-    socket.send(msg)
 
 
 ''' --------------------- Message functions ---------------------------- '''
 
 
-def USER(msg, client):
-    '''Creat a user to the current login user'''
-    data = 'user'
+def USER(username, client):
+    '''Creat a user for a current client
+       USAGE: USER <username>
+    '''
+    for client_socket in client_book:
+        if client_book[client_socket].name == username:
+            send_error(f'User {username} already exist', client)
+            return 0
+
+    # username not exist, add it to client book
+    client_book[client] = {
+        'name': username,
+        'room': False,
+        'socket': client
+    }
+
+    data = f'Welcome {username}!\n'
+    data += get_help_msg()
     client.send(data.encode('utf-8'))
 
+
 def LIST(msg, client):
-    '''Listing rooms'''
+    '''Listing rooms
+       USAGE: LIST <room name>    
+    '''
     data = 'list'
     client.send(data.encode('utf-8'))
 
+
 def ROOM(msg, client):
-    '''Create a rooms'''
+    '''Create a rooms
+       USAGE: ROOM <room name>
+    
+    '''
 
     data = 'ROOM'
     client.send(data.encode('utf-8'))
 
 
 def JOIN(msg, client):
-    '''Join a room'''
+    '''Join a room
+       USAGE: JOIN <room name>
+
+    '''
     data = 'JOIN'
     client.send(data.encode('utf-8'))
     
 
 def LEVE(msg, client):
-    '''Leave a room'''
+    '''Leave a room
+       USAGE: LEVE <room name>
+    
+    '''
     data = 'LEVE'
     client.send(data.encode('utf-8'))
     
@@ -86,10 +108,20 @@ def to_upper(string):
 def analyze_msg(msg, client):
     '''A function to analyze the msg and call an appropriate function
         using a function table msg_options
+
+        message format: COMD msg        (length is at leaset 6)
     '''
-    directive = to_upper(msg[0:4])
-    later_msg = msg[5:]
-    msg_options[directive](later_msg, client)
+    msg = msg.strip()
+    if len(msg) < 6: 
+        send_error('Invalid message.', client)
+    else:
+        directive = to_upper(msg[0:4])
+        later_msg = msg[5:]
+        try:
+            msg_options[directive](later_msg, client)
+        except:
+            send_error('Unknown message command.', client)
+
 
 
 def disconnet_client(input_list, client_count, input):
@@ -111,8 +143,53 @@ def get_client_info(client_list, client):
     return {}
 
 
+def send_error(msg, client):
+    '''Send an error msg to client
+    '''
+    msg = f'<<<< Error: {msg} >>>>'
+    client.send(msg.encode('utf-8'))
 
-''' --------------------- Program begin here ---------------------------- '''
+
+def broadcast(socket, room, client, msg):
+    '''Broadcase a message to all clients in a room
+    '''
+    print(f'Broadcast [{msg}] to room [{room}]')
+    msg = msg.encode('utf-8')
+    socket.send(msg)
+
+
+def get_help_msg():
+    '''Return command instruction'''
+    msg = '\nUsage: \n' 
+    msg += '       list <room name> - Listing all rooms\n'
+    msg += '       room <room name> - Create a rooms\n'
+    msg += '       join <room name> - Join a rooms\n'
+    msg += '       leve <room name> - Leave a rooms\n'
+
+    return msg
+
+
+
+
+''' --------------------- Program begin here ---------------------------- 
+client_info = {
+    'name': <username>,
+    'room': <room name>, 
+    'socket': <client_socket>
+}
+client_book = {
+    <client_socket>: client_info,
+    <client_socket>: client_info,
+    ...
+}
+room_book = {
+    'room_name': {
+        'name': <room name>,
+        'clients': [<client_info>, <client_info>, ...]
+    }
+}
+
+'''
 
 
 
@@ -125,8 +202,8 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a socket se
 input_list = [server]               # window
 running = 1
 client_count = 0
-client_list = []
-room_list = []
+client_book = {}
+room_book = {}
 
 
 # bind local source port to socket
