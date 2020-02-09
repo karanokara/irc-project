@@ -44,12 +44,21 @@ def USER(username, client):
     client.send(data.encode('utf-8'))
 
 
-def LIST(msg, client):
-    '''Listing rooms
-       USAGE: LIST <room name>    
+def LIRO(msg, client):
+    '''Listing all rooms
+       USAGE: LIRO
     '''
     data = 'list'
     client.send(data.encode('utf-8'))
+
+
+def LIME(msg, client):
+    '''Listing member in a room
+       USAGE: LIME <room name>    
+    '''
+    data = 'list'
+    client.send(data.encode('utf-8'))
+
 
 
 def ROOM(msg, client):
@@ -80,6 +89,26 @@ def LEVE(msg, client):
     client.send(data.encode('utf-8'))
     
 
+def SEND(msg, client):
+    '''Send a message to a room
+       USAGE: SEND <room name> <msg>
+
+    '''
+
+    client.send(data.encode('utf-8'))
+
+
+def PRIV(msg, client):
+    '''Send a message to a client
+       USAGE: SEND <username> <msg>
+
+    '''
+
+    client.send(data.encode('utf-8'))
+
+
+
+
 
 
 ''' --------------------- Tool functions ---------------------------- '''
@@ -88,13 +117,18 @@ def LEVE(msg, client):
 # a function table
 msg_options = {
     'USER': USER,
-    'LIST': LIST,
+    'LIRO': LIRO,
+    'LIME': LIME,
     'ROOM': ROOM,
     'JOIN': JOIN,
-    'LEVE': LEVE
+    'LEVE': LEVE,
+    'SEND': SEND,
+    'PRIV': PRIV
 }
 
+
 def to_upper(string):
+    '''string to uppercase '''
     upper_case = ""
     for character in string:
          if 'a' <= character <= 'z':
@@ -172,22 +206,26 @@ def get_help_msg():
 
 
 ''' --------------------- Program begin here ---------------------------- 
-client_info = {
-    'name': <username>,
-    'room': <room name>, 
-    'socket': <client_socket>
-}
-client_book = {
-    <client_socket>: client_info,
-    <client_socket>: client_info,
-    ...
-}
-room_book = {
-    'room_name': {
-        'name': <room name>,
-        'clients': [<client_info>, <client_info>, ...]
+Some data structures:
+
+    client_info = {
+        'name': <username>,
+        'room': [<room name>, <room name>, ...]
+        'socket': <client_socket>
     }
-}
+    
+    client_book = {
+        <client_socket>: client_info,
+        <client_socket>: client_info,
+        ...
+    }
+
+    room_book = {
+        'room_name': {
+            'name': <room name>,
+            'clients': [<client_info>, <client_info>, ...]
+        }
+    }
 
 '''
 
