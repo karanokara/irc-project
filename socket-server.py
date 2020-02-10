@@ -45,10 +45,16 @@ def USER(username, client):
 
 
 def LIRO(msg, client):
-    '''Listing all rooms
+    '''Listing all rooms with their name
        USAGE: LIRO
     '''
-    data = 'list'
+    data = ''
+    if len(room_book) > 0:
+        data = '\nAvailable rooms:\n'
+        for room in room_book:
+            data += '                 ' + room_book[room].name + '\n'
+    else:
+        data = '\nThere is no rooms.\n'        
     client.send(data.encode('utf-8'))
 
 
@@ -60,14 +66,27 @@ def LIME(msg, client):
     client.send(data.encode('utf-8'))
 
 
-
 def ROOM(msg, client):
     '''Create a rooms
        USAGE: ROOM <room name>
     
     '''
+    if not (msg.find(' ') == -1):
+        send_error('Invalid room name.', client)
+        return 0
+    
+    for room in room_book:
+        if room_book[room].name == msg:
+            send_error(f'Room {msg} already exist.', client)
+            return 0
 
-    data = 'ROOM'
+    # clear to create a new room
+    room_book[msg] = {
+        'name': msg,
+        'clients': [],
+        'client_count': 0
+    }
+    data = f'\nRoom {msg} successfully created.\n'
     client.send(data.encode('utf-8'))
 
 
@@ -167,8 +186,9 @@ def disconnet_client(input_list, client_count, input):
     # TODO
 
     # close socket conn
-    input.close()
-    input_list.remove(input)
+    input.close()                   # close socket
+    client_book.remove(input)       # remove client
+    input_list.remove(input)        # remove socket
     client_count -= 1
 
 
@@ -224,6 +244,7 @@ Some data structures:
         'room_name': {
             'name': <room name>,
             'clients': [<client_info>, <client_info>, ...]
+            'client_count': 0
         }
     }
 
