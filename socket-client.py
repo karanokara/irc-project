@@ -49,11 +49,14 @@ def greet_client(client_socket,username):
             # can't receive from server
             sys.exit('\nDisconnected from the server. ')
         
+        status = res_data[0:3]      # get status code
+        res_data = res_data[4:]     # the leaving msg
+
         print()
         print(res_data)
         print()
 
-        if (res_data[0:3] == '200'):
+        if (status == '200'):
             done = 1
 
     prompt(username)
@@ -62,6 +65,7 @@ def greet_client(client_socket,username):
 
 # try initiate conn on a socket
 try:
+    print('Connecting...')
     client.connect((host, port))
 except:
     sys.exit(f'Error: Fail to connect to host: {host} on port: {port}.')
@@ -73,8 +77,8 @@ username = greet_client(client, username)
 
 
 # a list of input steams
-# input_list = [client, sys.stdin]    # if executed in linux
-input_list = [client]   # in window
+input_list = [client, sys.stdin]    # if executed in linux
+# input_list = [client]   # in window
 
 
 while (1):
@@ -95,8 +99,12 @@ while (1):
                 sys.exit('\nDisconnected from the server.')
 
             if res_data:
+
+                status = res_data[0:3]      # get status code
+                res_data = res_data[4:]     # the leaving msg
+
                 # print data in a new line
-                print("\n")
+                print()
                 print(res_data.decode('utf-8'))
                 print()
 

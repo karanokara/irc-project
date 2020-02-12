@@ -28,14 +28,14 @@ def USER(username, client):
        USAGE: USER <username>
     '''
     for client_socket in client_book:
-        if client_book[client_socket].name == username:
-            send_error('300',f'User {username} already exist', client)
+        if client_book[client_socket]['name'] == username:
+            send_error('300',f'User "{username}" already exist', client)
             return 0
 
     # username not exist, add it to client book
     client_book[client] = {
         'name': username,
-        'room': [],
+        'rooms': [],
         'socket': client
     }
     data = '200 '
@@ -50,107 +50,123 @@ def LIRO(msg, client):
     '''
     data = '200 '
     if len(room_book) > 0:
-        data = '\nAvailable rooms:\n'
+        data += 'Available rooms:\n'
         for room in room_book:
-            data += '                 ' + room_book[room].name + '\n'
+            data += '                 ' + room_book[room]['name'] + '\n'
     else:
-        data = '\nThere is no rooms.\n'        
+        data += 'There is no rooms.'        
     client.send(data.encode('utf-8'))
 
 
-def LIME(msg, client):
+def LIME(room_name, client):
     '''Listing member in a room
        USAGE: LIME <room name>    
     '''
-    if (str.split(msg,' ') > 1):
+    if (len(str.split(room_name,' ')) > 1 or len(room_name) == 0):
         send_error('400','Invalid room name.', client)
         return 0
 
-    if not room_book.__contains__(msg):
-        send_error('300',f'Room {msg} is not exist.', client)
+    if not room_book.__contains__(room_name):
+        send_error('300',f'Room "{room_name}" is not exist.', client)
         return 0
 
-    client_list = room_book[msg].clients
+    client_list = room_book[room_name]['clients']
 
     data = '200 '
-    data += '\nCurrent users:\n'
+    data += 'Current users:\n'
     for user in client_list:
-        data += '                 ' + user.name + '\n'
+        data += '               ' + user['name']
 
     client.send(data.encode('utf-8'))
 
 
-def ROOM(msg, client):
+def ROOM(room_name, client):
     '''Create a rooms
        USAGE: ROOM <room name>
     
     '''
     # if it contains only 1 word for room name
-    if (str.split(msg,' ') > 1):
+    if (len(str.split(room_name,' ')) > 1 or len(room_name) == 0):
         send_error('400','Invalid room name.', client)
         return 0
     
     for room in room_book:
-        if room_book[room].name == msg:
-            send_error('300', f'Room {msg} already exist.', client)
+        if room_book[room]['name'] == room_name:
+            send_error('300', f'Room "{room_name}" already exist.', client)
             return 0
 
     # clear to create a new room
-    room_book[msg] = {
-        'name': msg,
+    room_book[room_name] = {
+        'name': room_name,
         'clients': []
     }
 
     data = '200 '
-    data = f'\nRoom {msg} successfully created.\n'
+    data += f'Room "{room_name}" successfully created.'
     client.send(data.encode('utf-8'))
 
 
-def JOIN(msg, client):
+def JOIN(room_name, client):
     '''Join a room
        USAGE: JOIN <room name>
 
     '''
-    if (str.split(msg,' ') > 1):
+    if (len(str.split(room_name,' ')) > 1 or len(room_name) == 0):
         send_error('400','Invalid room name.', client)
         return 0
 
-    if not room_book.__contains__(msg):
-        send_error('300',f'Room {msg} is not exist.', client)
+    if not room_book.__contains__(room_name):
+        send_error('300',f'Room "{room_name}" is not exist.', client)
         return 0
 
-    # room is exist, add client inside
-    room_book[msg].clients.append(client_book[client])
+    client_list = room_book[room_name]['clients']
+
+    # room is exist, check if client alread inside
+    if client_book[client] in client_list:
+        username = client_book[client]['name']
+        send_error('300',f'Client "{username}" already exist in the room "{room_name}".', client)
+        return 0
+
+    # room is exist, client not inside that room, add client
+    client_list.append(client_book[client])
 
     # add room to client
-    client_book[client].room.append(msg)
+    client_book[client]['rooms'].append(room_name)
 
     data = '200 '
-    data += f'You have joined the room {msg}'
+    data += f'You have joined the room {room_name}'
     client.send(data.encode('utf-8'))
     
 
-def LEVE(msg, client):
+def LEVE(room_name, client):
     '''Leave a room
        USAGE: LEVE <room name>
     
     '''
-    if (str.split(msg,' ') > 1):
+    if (len(str.split(room_name,' ')) > 1 or len(room_name) == 0):
         send_error('400','Invalid room name.', client)
         return 0
 
-    if not room_book.__contains__(msg):
-        send_error('300',f'Room {msg} is not exist.', client)
+    if not room_book.__contains__(room_name):
+        send_error('300',f'Room "{room_name}" is not exist.', client)
         return 0
 
-    # room is exist, remove client inside
-    room_book[msg].clients.remove(client_book[client])
+    client_list = room_book[room_name]['clients']
+
+    # room is exist, check if client inside
+    if not (client_book[client] in client_list):
+        username = client_book[client]['name']
+        send_error('300',f'Client "{username}" doesn\'t exist in the room "{room_name}".', client)
+        return 0
+
+    # room is exist, client inside room, remove client
+    room_book[room_name]['clients'].remove(client_book[client])
 
     # remove room from client
-    client_book[client].room.remove(msg)
+    client_book[client]['rooms'].remove(room_name)
 
     data = '200 '
-    data += f'You have leave the room {msg}'
+    data += f'You have leave the room {room_name}'
     client.send(data.encode('utf-8'))
     
 
@@ -165,7 +181,7 @@ def SEND(msg, client):
 
 def PRIV(msg, client):
     '''Send a message to a client
-       USAGE: SEND <username> <msg>
+       USAGE: PRIV <username> <msg>
 
     '''
 
@@ -192,6 +208,20 @@ msg_options = {
 }
 
 
+def get_help_msg():
+    '''Return command instruction'''
+    msg = '\nUsage: \n' 
+    msg += '       LIRO                   - Listing all rooms\n'
+    msg += '       LIME <room name>       - Listing members in a room\n'
+    msg += '       ROOM <room name>       - Create a room\n'
+    msg += '       JOIN <room name>       - Join a room\n'
+    msg += '       lEVE <room name>       - Leave a rooms\n'
+    msg += '       SEND <room name> <msg> - Send message to a room\n'
+    msg += '       PRIV <username> <msg>  - Send private message to a client\n'
+
+    return msg
+
+
 def to_upper(string):
     '''string to uppercase '''
     upper_case = ""
@@ -211,8 +241,8 @@ def analyze_msg(msg, client):
         message format: COMD msg        (length is at leaset 6)
     '''
     msg = msg.strip()
-    if len(msg) < 6: 
-        send_error('Invalid message.', client)
+    if len(msg) < 4: 
+        send_error('400', 'Invalid message.', client)
     else:
         directive = to_upper(msg[0:4])
         later_msg = msg[5:]
@@ -220,7 +250,6 @@ def analyze_msg(msg, client):
             msg_options[directive](later_msg, client)
         except:
             send_error('500', 'Unknown message command.', client)
-
 
 
 def disconnet_client(input_list, client_count, input):
@@ -233,7 +262,7 @@ def disconnet_client(input_list, client_count, input):
 
     # close socket conn
     input.close()                   # close socket
-    client_book.remove(input)       # remove client
+    client_book.pop(input)          # remove client
     input_list.remove(input)        # remove socket
     client_count -= 1
 
@@ -258,17 +287,6 @@ def broadcast(socket, room, client, msg):
     socket.send(msg)
 
 
-def get_help_msg():
-    '''Return command instruction'''
-    msg = '\nUsage: \n' 
-    msg += '       list <room name> - Listing all rooms\n'
-    msg += '       room <room name> - Create a rooms\n'
-    msg += '       join <room name> - Join a rooms\n'
-    msg += '       leve <room name> - Leave a rooms\n'
-
-    return msg
-
-
 
 
 ''' --------------------- Program begin here ---------------------------- 
@@ -276,7 +294,7 @@ Some data structures:
 
     client_info = {
         'name': <username>,
-        'room': [<room name>, <room name>, ...]
+        'rooms': [<room name>, <room name>, ...]
         'socket': <client_socket>
     }
     
