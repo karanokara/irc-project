@@ -35,21 +35,27 @@ def prompt(username):
 
 def greet_client(client_socket,username):
     ''' send server the name of client'''
+    done = 0
 
-    print(f'Successfully connected, enter your name: ', end='', flush=True)
-    username = sys.stdin.readline().rstrip()
-    send_data = 'USER ' + username
-    client_socket.send(send_data.encode('utf-8'))
+    while not done:
+        print(f'Enter your name: ', end='', flush=True)
+        username = sys.stdin.readline().rstrip()
+        send_data = 'USER ' + username
+        client_socket.send(send_data.encode('utf-8'))
 
-    try:
-        res_data = client_socket.recv(size).decode('utf-8').rstrip()
-    except:
-        # can't receive from server
-        sys.exit('\n<<<< Disconnected from the server. >>>>')
-    
-    print()
-    print(res_data)
-    print()
+        try:
+            res_data = client_socket.recv(size).decode('utf-8').rstrip()
+        except:
+            # can't receive from server
+            sys.exit('\nDisconnected from the server. ')
+        
+        print()
+        print(res_data)
+        print()
+
+        if (res_data[0:3] == '200'):
+            done = 1
+
     prompt(username)
     return username
 
@@ -60,12 +66,16 @@ try:
 except:
     sys.exit(f'Error: Fail to connect to host: {host} on port: {port}.')
 
+print(f'Connected successfully.')
+
+# greet client to the server
+username = greet_client(client, username)
+
+
 # a list of input steams
 # input_list = [client, sys.stdin]    # if executed in linux
 input_list = [client]   # in window
 
-# greet client to the server
-username = greet_client(client, username)
 
 while (1):
     # Get the list sockets that are ready to read
@@ -82,7 +92,7 @@ while (1):
                 res_data = input.recv(size)
             except:
                 # can't receive from server
-                sys.exit('\n<<<< Disconnected from the server. >>>>')
+                sys.exit('\nDisconnected from the server.')
 
             if res_data:
                 # print data in a new line
@@ -94,7 +104,7 @@ while (1):
                 # print ('received', len(res_data), ' bytes')
             else:
                 # there is no data, server is disconnected
-                sys.exit('\n<<<< Disconnected from the server. >>>>')
+                sys.exit('\nDisconnected from the server.')
 
         else:
             # input is from client keyboard input
@@ -102,7 +112,7 @@ while (1):
 
             if send_data == 'quit\n':
                 client.close()
-                sys.exit('<<<< You exit successfully. >>>>')
+                sys.exit('\nYou exit successfully.')
             
             # send data
             client.send(send_data.encode('utf-8'))

@@ -29,7 +29,7 @@ def USER(username, client):
     '''
     for client_socket in client_book:
         if client_book[client_socket].name == username:
-            send_error(f'User {username} already exist', client)
+            send_error('300',f'User {username} already exist', client)
             return 0
 
     # username not exist, add it to client book
@@ -38,8 +38,8 @@ def USER(username, client):
         'room': False,
         'socket': client
     }
-
-    data = f'Welcome {username}!\n'
+    data = '200 '
+    data += f'Welcome {username}!\n'
     data += get_help_msg()
     client.send(data.encode('utf-8'))
 
@@ -48,7 +48,7 @@ def LIRO(msg, client):
     '''Listing all rooms with their name
        USAGE: LIRO
     '''
-    data = ''
+    data = '200 '
     if len(room_book) > 0:
         data = '\nAvailable rooms:\n'
         for room in room_book:
@@ -62,7 +62,21 @@ def LIME(msg, client):
     '''Listing member in a room
        USAGE: LIME <room name>    
     '''
-    data = 'list'
+    if (str.split(msg,' ') > 1):
+        send_error('400','Invalid room name.', client)
+        return 0
+
+    if not room_book.__contains__('msg'):
+        send_error('300',f'Room {msg} is not exist.', client)
+        return 0
+
+    client_list = room_book[msg].clients
+
+    data = '200 '
+    data += '\nCurrent users:\n'
+    for user in client_list:
+        data += '                 ' + user.name + '\n'
+
     client.send(data.encode('utf-8'))
 
 
@@ -71,13 +85,14 @@ def ROOM(msg, client):
        USAGE: ROOM <room name>
     
     '''
-    if not (msg.find(' ') == -1):
-        send_error('Invalid room name.', client)
+    # if it contains only 1 word for room name
+    if (str.split(msg,' ') > 1):
+        send_error('400','Invalid room name.', client)
         return 0
     
     for room in room_book:
         if room_book[room].name == msg:
-            send_error(f'Room {msg} already exist.', client)
+            send_error('300', f'Room {msg} already exist.', client)
             return 0
 
     # clear to create a new room
@@ -86,6 +101,8 @@ def ROOM(msg, client):
         'clients': [],
         'client_count': 0
     }
+    
+    data = '200 '
     data = f'\nRoom {msg} successfully created.\n'
     client.send(data.encode('utf-8'))
 
@@ -173,7 +190,7 @@ def analyze_msg(msg, client):
         try:
             msg_options[directive](later_msg, client)
         except:
-            send_error('Unknown message command.', client)
+            send_error('500', 'Unknown message command.', client)
 
 
 
@@ -197,10 +214,10 @@ def get_client_info(client_list, client):
     return {}
 
 
-def send_error(msg, client):
+def send_error(status, msg, client):
     '''Send an error msg to client
     '''
-    msg = f'<<<< Error: {msg} >>>>'
+    msg = f'{status} Error: {msg}'
     client.send(msg.encode('utf-8'))
 
 
@@ -247,6 +264,14 @@ Some data structures:
             'client_count': 0
         }
     }
+
+
+error code:
+200 OK
+300 something already exist
+400 something invalid
+500 something unknown
+
 
 '''
 
