@@ -30,7 +30,7 @@ username = 'client'
 def prompt(username):
     '''A function to print out prompt for client
     '''
-    print(f'>{username} $ ', end='', flush=True)    # don't go to next line, allow input
+    print(f'> {username} $ ', end='', flush=True)    # don't go to next line, allow input
 
 
 def greet_client(client_socket,username):

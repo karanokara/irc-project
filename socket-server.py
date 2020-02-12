@@ -27,6 +27,12 @@ def USER(username, client):
     '''Creat a user for a current client
        USAGE: USER <username>
     '''
+    # if user already in the book
+    if client_book.__contains__(client):
+        send_error('300',f'You already login.', client)
+        return 0
+
+    # check if username have already been used by other users
     for client_socket in client_book:
         if client_book[client_socket]['name'] == username:
             send_error('300',f'User "{username}" already exist', client)
@@ -48,6 +54,9 @@ def LIRO(msg, client):
     '''Listing all rooms with their name
        USAGE: LIRO
     '''
+    if not (validate_user(client)):
+        return 0
+
     data = '200 '
     if len(room_book) > 0:
         data += 'Available rooms:\n'
@@ -62,6 +71,9 @@ def LIME(room_name, client):
     '''Listing member in a room
        USAGE: LIME <room name>    
     '''
+    if not (validate_user(client)):
+        return 0
+        
     if (len(str.split(room_name,' ')) > 1 or len(room_name) == 0):
         send_error('400','Invalid room name.', client)
         return 0
@@ -85,6 +97,9 @@ def ROOM(room_name, client):
        USAGE: ROOM <room name>
     
     '''
+    if not (validate_user(client)):
+        return 0
+
     # if it contains only 1 word for room name
     if (len(str.split(room_name,' ')) > 1 or len(room_name) == 0):
         send_error('400','Invalid room name.', client)
@@ -111,6 +126,9 @@ def JOIN(room_name, client):
        USAGE: JOIN <room name>
 
     '''
+    if not (validate_user(client)):
+        return 0
+
     if (len(str.split(room_name,' ')) > 1 or len(room_name) == 0):
         send_error('400','Invalid room name.', client)
         return 0
@@ -150,6 +168,9 @@ def LEVE(room_name, client):
        USAGE: LEVE <room name>
     
     '''
+    if not (validate_user(client)):
+        return 0
+
     if (len(str.split(room_name,' ')) > 1 or len(room_name) == 0):
         send_error('400','Invalid room name.', client)
         return 0
@@ -189,6 +210,10 @@ def SEND(msg, client):
        USAGE: SEND <room name> <msg>
 
     '''
+    if not (validate_user(client)):
+        return 0
+
+    
 
     client.send(data.encode('utf-8'))
 
@@ -198,6 +223,9 @@ def PRIV(msg, client):
        USAGE: PRIV <username> <msg>
 
     '''
+    if not (validate_user(client)):
+        return 0
+
 
     client.send(data.encode('utf-8'))
 
@@ -301,6 +329,12 @@ def broadcast(socket, room, client, msg):
     socket.send(msg)
 
 
+def validate_user(client):
+    if (client in client_book):
+        return True
+    else:
+        send_error('600', 'Client is not valid.', client)
+        return False
 
 
 ''' --------------------- Program begin here ---------------------------- 
@@ -331,7 +365,7 @@ error code:
 300 something already exist
 400 something invalid
 500 something unknown
-
+600 client not valid
 
 '''
 
