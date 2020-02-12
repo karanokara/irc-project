@@ -35,7 +35,7 @@ def USER(username, client):
     # username not exist, add it to client book
     client_book[client] = {
         'name': username,
-        'room': False,
+        'room': [],
         'socket': client
     }
     data = '200 '
@@ -66,7 +66,7 @@ def LIME(msg, client):
         send_error('400','Invalid room name.', client)
         return 0
 
-    if not room_book.__contains__('msg'):
+    if not room_book.__contains__(msg):
         send_error('300',f'Room {msg} is not exist.', client)
         return 0
 
@@ -98,10 +98,9 @@ def ROOM(msg, client):
     # clear to create a new room
     room_book[msg] = {
         'name': msg,
-        'clients': [],
-        'client_count': 0
+        'clients': []
     }
-    
+
     data = '200 '
     data = f'\nRoom {msg} successfully created.\n'
     client.send(data.encode('utf-8'))
@@ -112,7 +111,22 @@ def JOIN(msg, client):
        USAGE: JOIN <room name>
 
     '''
-    data = 'JOIN'
+    if (str.split(msg,' ') > 1):
+        send_error('400','Invalid room name.', client)
+        return 0
+
+    if not room_book.__contains__(msg):
+        send_error('300',f'Room {msg} is not exist.', client)
+        return 0
+
+    # room is exist, add client inside
+    room_book[msg].clients.append(client_book[client])
+
+    # add room to client
+    client_book[client].room.append(msg)
+
+    data = '200 '
+    data += f'You have joined the room {msg}'
     client.send(data.encode('utf-8'))
     
 
@@ -261,7 +275,6 @@ Some data structures:
         'room_name': {
             'name': <room name>,
             'clients': [<client_info>, <client_info>, ...]
-            'client_count': 0
         }
     }
 
