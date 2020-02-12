@@ -213,24 +213,84 @@ def SEND(msg, client):
     if not (validate_user(client)):
         return 0
 
-    
+    msgs = str.split(msg, ' ')
+    if not (len(msg) == 2 and len(msgs[0]) > 0 and len(msg[1]) > 0 ):
+        send_error('400','Invalid parameter, see HELP.', client)
+        return 0
 
+    room_name = msgs[0]
+    msg = msgs[1]
+
+    # check if room exists
+    if not room_book.__contains__(room_name):
+        send_error('300',f'Room "{room_name}" is not exist.', client)
+        return 0    
+
+    client_list = room_book[room_name]['clients']
+    current_client = client_book[client]
+    username = current_client['name']
+
+    # room is exist, check if client inside
+    if not (current_client in client_list):
+        send_error('300',f'Client "{username}" doesn\'t exist in the room "{room_name}".', client)
+        return 0    
+
+    # send msg to all clients in the room
+    for user in client_list:
+        if not (user == current_client):
+            # send to target
+            data = '200 '
+            data += f'{username}@{room_name}: ' + msg
+            user['socket'].send(data.encode('utf-8'))
+
+    # send to current user
+    data = '200 '
+    data += f'You@{room_name}: ' + msg
     client.send(data.encode('utf-8'))
+    return 1
 
 
 def PRIV(msg, client):
-    '''Send a message to a client
+    '''Send a private message to a client
        USAGE: PRIV <username> <msg>
 
     '''
     if not (validate_user(client)):
         return 0
 
+    msgs = str.split(msg, ' ')
+    if not (len(msg) == 2 and len(msgs[0]) > 0 and len(msg[1]) > 0 ):
+        send_error('400','Invalid parameter, see HELP.', client)
+        return 0
 
+    target_username = msgs[0]
+    msg = msgs[1]
+
+    # check if user exists
+    for client_socket in client_book:
+        if client_book[client_socket]['name'] == target_username:
+            # send to target user
+            current_username = client_book[client]['name']
+            data = '200 '
+            data += f'{current_username} -> You: ' + msg
+            client_book[client_socket]['socket'].send(data.encode('utf-8'))
+
+            # send to current user
+            data = '200 '
+            data += f'You -> {target_username}: ' + msg
+            client.send(data.encode('utf-8'))
+            return 1
+
+    send_error('300',f'User "{target_username}" doesn\'t exist', client)
+    return 0
+
+
+def HELP(msg, client):
+    '''Print out command help
+
+    '''
+    data = get_help_msg()
     client.send(data.encode('utf-8'))
-
-
-
 
 
 
@@ -246,7 +306,8 @@ msg_options = {
     'JOIN': JOIN,
     'LEVE': LEVE,
     'SEND': SEND,
-    'PRIV': PRIV
+    'PRIV': PRIV,
+    'help': HELP
 }
 
 
@@ -260,6 +321,7 @@ def get_help_msg():
     msg += '       lEVE <room name>       - Leave a rooms\n'
     msg += '       SEND <room name> <msg> - Send message to a room\n'
     msg += '       PRIV <username> <msg>  - Send private message to a client\n'
+    msg += '       HELP                   - Get command help\n'
 
     return msg
 
@@ -309,24 +371,11 @@ def disconnet_client(input_list, client_count, input):
     client_count -= 1
 
 
-def get_client_info(client_list, client):
-
-    return {}
-
-
 def send_error(status, msg, client):
     '''Send an error msg to client
     '''
     msg = f'{status} Error: {msg}'
     client.send(msg.encode('utf-8'))
-
-
-def broadcast(socket, room, client, msg):
-    '''Broadcase a message to all clients in a room
-    '''
-    print(f'Broadcast [{msg}] to room [{room}]')
-    msg = msg.encode('utf-8')
-    socket.send(msg)
 
 
 def validate_user(client):
@@ -335,6 +384,8 @@ def validate_user(client):
     else:
         send_error('600', 'Client is not valid.', client)
         return False
+
+
 
 
 ''' --------------------- Program begin here ---------------------------- 
