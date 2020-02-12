@@ -135,7 +135,22 @@ def LEVE(msg, client):
        USAGE: LEVE <room name>
     
     '''
-    data = 'LEVE'
+    if (str.split(msg,' ') > 1):
+        send_error('400','Invalid room name.', client)
+        return 0
+
+    if not room_book.__contains__(msg):
+        send_error('300',f'Room {msg} is not exist.', client)
+        return 0
+
+    # room is exist, remove client inside
+    room_book[msg].clients.remove(client_book[client])
+
+    # remove room from client
+    client_book[client].room.remove(msg)
+
+    data = '200 '
+    data += f'You have leave the room {msg}'
     client.send(data.encode('utf-8'))
     
 
