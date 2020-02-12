@@ -24,26 +24,31 @@ import sys
 
 
 def USER(username, client):
-    '''Creat a user for a current client
-       USAGE: USER <username>
+    ''' Creat a user for a current client
+
+        USAGE: USER <username>
     '''
     # if user already in the book
-    if client_book.__contains__(client):
+    if CLIENT_BOOK.__contains__(client):
         send_error('300',f'You already login.', client)
         return 0
 
     # check if username have already been used by other users
-    for client_socket in client_book:
-        if client_book[client_socket]['name'] == username:
+    for client_socket in CLIENT_BOOK:
+        if CLIENT_BOOK[client_socket]['name'] == username:
             send_error('300',f'User "{username}" already exist', client)
             return 0
 
+    # inform other users
+    broadcast([], f'Client "{username}" login.')
+
     # username not exist, add it to client book
-    client_book[client] = {
+    CLIENT_BOOK[client] = {
         'name': username,
         'rooms': [],
         'socket': client
     }
+
     data = '200 '
     data += f'Welcome {username}!\n\n'
     data += get_help_msg()
@@ -51,25 +56,27 @@ def USER(username, client):
 
 
 def LIRO(msg, client):
-    '''Listing all rooms with their name
-       USAGE: LIRO
+    ''' Listing all rooms with their name
+
+        USAGE: LIRO
     '''
     if not (validate_user(client)):
         return 0
 
     data = '200 '
-    if len(room_book) > 0:
+    if len(ROOM_BOOK) > 0:
         data += 'Available rooms:\n'
-        for room in room_book:
-            data += '                 ' + room_book[room]['name'] + '\n'
+        for room in ROOM_BOOK:
+            data += '                 ' + ROOM_BOOK[room]['name'] + '\n'
     else:
         data += 'There is no rooms.'        
     client.send(data.encode('utf-8'))
 
 
 def LIME(room_name, client):
-    '''Listing member in a room
-       USAGE: LIME <room name>    
+    ''' Listing member in a room
+
+        USAGE: LIME <room name>    
     '''
     if not (validate_user(client)):
         return 0
@@ -78,11 +85,11 @@ def LIME(room_name, client):
         send_error('400','Invalid room name.', client)
         return 0
 
-    if not room_book.__contains__(room_name):
+    if not ROOM_BOOK.__contains__(room_name):
         send_error('300',f'Room "{room_name}" is not exist.', client)
         return 0
 
-    client_list = room_book[room_name]['clients']
+    client_list = ROOM_BOOK[room_name]['clients']
 
     data = '200 '
     data += 'Current users:\n'
@@ -93,9 +100,9 @@ def LIME(room_name, client):
 
 
 def ROOM(room_name, client):
-    '''Create a rooms
-       USAGE: ROOM <room name>
-    
+    ''' Create a rooms
+
+        USAGE: ROOM <room name>
     '''
     if not (validate_user(client)):
         return 0
@@ -105,13 +112,13 @@ def ROOM(room_name, client):
         send_error('400','Invalid room name.', client)
         return 0
     
-    for room in room_book:
-        if room_book[room]['name'] == room_name:
+    for room in ROOM_BOOK:
+        if ROOM_BOOK[room]['name'] == room_name:
             send_error('300', f'Room "{room_name}" already exist.', client)
             return 0
 
     # clear to create a new room
-    room_book[room_name] = {
+    ROOM_BOOK[room_name] = {
         'name': room_name,
         'clients': []
     }
@@ -122,9 +129,9 @@ def ROOM(room_name, client):
 
 
 def JOIN(room_name, client):
-    '''Join a room
-       USAGE: JOIN <room name>
+    ''' Join a room
 
+        USAGE: JOIN <room name>
     '''
     if not (validate_user(client)):
         return 0
@@ -133,12 +140,12 @@ def JOIN(room_name, client):
         send_error('400','Invalid room name.', client)
         return 0
 
-    if not room_book.__contains__(room_name):
+    if not ROOM_BOOK.__contains__(room_name):
         send_error('300',f'Room "{room_name}" is not exist.', client)
         return 0
 
-    client_list = room_book[room_name]['clients']
-    current_client = client_book[client]
+    client_list = ROOM_BOOK[room_name]['clients']
+    current_client = CLIENT_BOOK[client]
     username = current_client['name']
 
     # room is exist, check if client alread inside
@@ -147,10 +154,7 @@ def JOIN(room_name, client):
         return 0
 
     # inform other users that this user join the room
-    for user in client_list:
-        data = '200 '
-        data += f'\n"{username}" joined the room "{room_name}"'
-        user['socket'].send(data.encode('utf-8'))
+    broadcast([room_name], f'\n"{username}" joined the room "{room_name}"')
 
     # room is exist, client not inside that room, add client
     client_list.append(current_client)
@@ -158,15 +162,16 @@ def JOIN(room_name, client):
     # add room to client
     current_client['rooms'].append(room_name)
 
+    # inform current client
     data = '200 '
     data += f'You have joined the room "{room_name}"'
     client.send(data.encode('utf-8'))
     
 
 def LEVE(room_name, client):
-    '''Leave a room
-       USAGE: LEVE <room name>
-    
+    ''' Leave a room
+
+        USAGE: LEVE <room name>
     '''
     if not (validate_user(client)):
         return 0
@@ -175,12 +180,12 @@ def LEVE(room_name, client):
         send_error('400','Invalid room name.', client)
         return 0
 
-    if not room_book.__contains__(room_name):
+    if not ROOM_BOOK.__contains__(room_name):
         send_error('300',f'Room "{room_name}" is not exist.', client)
         return 0
 
-    client_list = room_book[room_name]['clients']
-    current_client = client_book[client]
+    client_list = ROOM_BOOK[room_name]['clients']
+    current_client = CLIENT_BOOK[client]
     username = current_client['name']
 
     # room is exist, check if client inside
@@ -195,20 +200,18 @@ def LEVE(room_name, client):
     current_client['rooms'].remove(room_name)
 
     # inform other users that this user leave the room
-    for user in client_list:
-        data = '200 '
-        data += f'\n"{username}" just leave the room "{room_name}"'
-        user['socket'].send(data.encode('utf-8'))
+    broadcast([room_name], f'\n"{username}" just leave the room "{room_name}"')
 
+    # inform current client
     data = '200 '
     data += f'You have leave the room {room_name}'
     client.send(data.encode('utf-8'))
     
 
 def SEND(msg, client):
-    '''Send a message to a room
-       USAGE: SEND <room name> <msg>
+    ''' Send a message to a room
 
+        USAGE: SEND <room name> <msg>
     '''
     if not (validate_user(client)):
         return 0
@@ -222,12 +225,12 @@ def SEND(msg, client):
     msg = msgs[1]
 
     # check if room exists
-    if not room_book.__contains__(room_name):
+    if not ROOM_BOOK.__contains__(room_name):
         send_error('300',f'Room "{room_name}" is not exist.', client)
         return 0    
 
-    client_list = room_book[room_name]['clients']
-    current_client = client_book[client]
+    client_list = ROOM_BOOK[room_name]['clients']
+    current_client = CLIENT_BOOK[client]
     username = current_client['name']
 
     # room is exist, check if client inside
@@ -251,9 +254,9 @@ def SEND(msg, client):
 
 
 def PRIV(msg, client):
-    '''Send a private message to a client
-       USAGE: PRIV <username> <msg>
+    ''' Send a private message to a client
 
+        USAGE: PRIV <username> <msg>
     '''
     if not (validate_user(client)):
         return 0
@@ -267,13 +270,13 @@ def PRIV(msg, client):
     msg = msgs[1]
 
     # check if user exists
-    for client_socket in client_book:
-        if client_book[client_socket]['name'] == target_username:
+    for client_socket in CLIENT_BOOK:
+        if CLIENT_BOOK[client_socket]['name'] == target_username:
             # send to target user
-            current_username = client_book[client]['name']
+            current_username = CLIENT_BOOK[client]['name']
             data = '200 '
             data += f'\n{current_username} -> You: ' + msg
-            client_book[client_socket]['socket'].send(data.encode('utf-8'))
+            CLIENT_BOOK[client_socket]['socket'].send(data.encode('utf-8'))
 
             # send to current user
             data = '200 '
@@ -285,9 +288,19 @@ def PRIV(msg, client):
     return 0
 
 
-def HELP(msg, client):
-    '''Print out command help
+def FILE(msg, client):
+    ''' Send a file to a client
 
+        USAGE: FILE <username> <filename>
+    '''
+
+    return 0
+    
+
+def HELP(msg, client):
+    ''' Print out command help
+
+        USAGE: HELP
     '''
     data = '200 '
     data += get_help_msg()
@@ -308,12 +321,13 @@ msg_options = {
     'LEVE': LEVE,
     'SEND': SEND,
     'PRIV': PRIV,
+    'FILE': FILE,
     'HELP': HELP
 }
 
 
 def get_help_msg():
-    '''Return command instruction'''
+    ''' Return command instruction'''
     msg = 'Usage: \n' 
     msg += '       LIRO                   - Listing all rooms\n'
     msg += '       LIME <room name>       - Listing members in a room\n'
@@ -323,12 +337,13 @@ def get_help_msg():
     msg += '       SEND <room name> <msg> - Send message to a room\n'
     msg += '       PRIV <username> <msg>  - Send private message to a client\n'
     msg += '       HELP                   - Get command help\n'
+    msg += '       QUIT                   - Quit the application\n'
 
     return msg
 
 
 def to_upper(string):
-    '''string to uppercase '''
+    ''' string to uppercase '''
     upper_case = ""
     for character in string:
          if 'a' <= character <= 'z':
@@ -340,7 +355,7 @@ def to_upper(string):
 
 
 def analyze_msg(msg, client):
-    '''A function to analyze the msg and call an appropriate function
+    ''' A function to analyze the msg and call an appropriate function
         using a function table msg_options
 
         message format: COMD msg        (length is at leaset 4)
@@ -354,44 +369,80 @@ def analyze_msg(msg, client):
         try:
             msg_options[directive](later_msg, client)
         except:
-            send_error('500', 'Unknown message command.', client)
+            send_error('500', 'Unknown message command. See HELP.', client)
 
 
-def disconnet_client(input_list, input):
-    ''' find out who disconnect'''
-    global client_count
+def disconnet_client(INPUT_LIST, input):
+    ''' Disconnect a client
+    '''
+    global CLIENT_COUNT
 
-    print('client #' + str( input_list.index(input)) + ' disconnected.')
-    
-    # inform clients in a same room who has disconnected
-    # TODO
+    username = CLIENT_BOOK[input]['name']
+
+    print(f'client "{username}" disconnected.')
 
     # clear client stored info
-    room_list = client_book[input]['rooms']
+    room_list = CLIENT_BOOK[input]['rooms']
     for room in room_list:
-        room_book[room]['clients'].remove(client_book[input])
+        ROOM_BOOK[room]['clients'].remove(CLIENT_BOOK[input])
 
-    client_book.pop(input)  # remove client
+    # remove client
+    CLIENT_BOOK.pop(input)
+
+    # inform other users
+    broadcast([], f'Client "{username}" logout.')
 
     # close socket conn
     input.close()                   # close socket
-    input_list.remove(input)        # remove socket
-    client_count -= 1
+    INPUT_LIST.remove(input)        # remove socket
+    CLIENT_COUNT -= 1
 
 
 def send_error(status, msg, client):
-    '''Send an error msg to client
+    ''' Send an error msg to client
     '''
     msg = f'{status} Error: {msg}'
     client.send(msg.encode('utf-8'))
 
 
 def validate_user(client):
-    if (client in client_book):
+    ''' Validate if a user is in the book
+    '''
+    if (client in CLIENT_BOOK):
         return True
     else:
         send_error('600', 'Client is not valid.', client)
         return False
+
+
+def broadcast(rooms, msg):
+    ''' Broadcast a msg to all clients or to some specific
+        rooms if length or rooms list > 0
+
+        arg:
+
+        rooms - a list of room name
+
+        msg - a msg string
+    '''
+    # broadcast to all clients
+    if len(rooms) == 0:
+        for socket in CLIENT_BOOK:
+            data = '200 '
+            data += msg
+            CLIENT_BOOK[socket]['socket'].send(data.encode('utf-8'))
+        return 0
+
+    # broadcast to some specific rooms
+    while len(rooms) > 0:
+        room_name = rooms.pop(0)
+        if ROOM_BOOK.__contains__(room_name):
+            client_list = ROOM_BOOK[room_name]['clients']
+            for user in client_list:
+                data = '200 '
+                data += msg
+                user['socket'].send(data.encode('utf-8'))
+
 
 
 
@@ -405,13 +456,13 @@ Some data structures:
         'socket': <client_socket>
     }
     
-    client_book = {
+    CLIENT_BOOK = {
         <client_socket>: client_info,
         <client_socket>: client_info,
         ...
     }
 
-    room_book = {
+    ROOM_BOOK = {
         'room_name': {
             'name': <room name>,
             'clients': [<client_info>, <client_info>, ...]
@@ -420,6 +471,7 @@ Some data structures:
 
 
 error code:
+100 send file
 200 OK
 300 something already exist
 400 something invalid
@@ -429,24 +481,24 @@ error code:
 '''
 
 
-
+# globa variables:
 host = ''
 # port = int(sys.argv[1])
 port = 2999
 size = 1024 * 100       # accept 100k
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a socket server
-# input_list = [server,sys.stdin]     # linux
-input_list = [server]               # window
 running = 1
-client_count = 0
-client_book = {}
-room_book = {}
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a socket server
+# INPUT_LIST = [server,sys.stdin]     # linux
+INPUT_LIST = [server]               # window
+CLIENT_COUNT = 0
+CLIENT_BOOK = {}
+ROOM_BOOK = {}
 
 
 # bind local source port to socket
 server.bind((host,port))
 
-# enable socket to accept connections
+# enable socket to accept N connections
 server.listen(5)
 
 print('Server is now running ...')
@@ -454,7 +506,7 @@ print('Server is now running ...')
 while running:
     # code stop below
     # once there is client socket conn, code move forward
-    read_ready,write_ready,except_ready = select.select(input_list,[],[])
+    read_ready,write_ready,except_ready = select.select(INPUT_LIST,[],[])
 
     for input in read_ready:
 
@@ -463,11 +515,11 @@ while running:
             
             new_socket_conn, ip_addr = server.accept()
 
-            client_count += 1
-            print('client #' + str(client_count) + ' is at', ip_addr)
+            CLIENT_COUNT += 1
+            print('client #' + str(CLIENT_COUNT) + ' is at', ip_addr)
 
             # add new client to the listenning list
-            input_list.append(new_socket_conn)
+            INPUT_LIST.append(new_socket_conn)
 
         elif input == sys.stdin:
             # handle standard input
@@ -481,14 +533,14 @@ while running:
                 data = input.recv(size)
             except:
                 # couldn't receive data, client disconnects
-                disconnet_client(input_list, input)
+                disconnet_client(INPUT_LIST, input)
                 
             if data:
                 # there is any data from client
                 data = data.decode('utf-8').rstrip()
                 
                 # log the msg
-                print('Received data from client #' + str( input_list.index(input)) + ':', data)
+                print('Received data from client #' + str( INPUT_LIST.index(input)) + ':', data)
                 
                 # analyze the msg and call a appropriate function to handle it
                 analyze_msg(data, input)
@@ -497,7 +549,7 @@ while running:
                 # input.send(send_data.encode('utf-8'))
             else:
                 # there is no data, client disconnects
-                disconnet_client(input_list, input)
+                disconnet_client(INPUT_LIST, input)
 
                 
 server.close()
