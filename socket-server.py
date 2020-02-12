@@ -45,7 +45,7 @@ def USER(username, client):
         'socket': client
     }
     data = '200 '
-    data += f'Welcome {username}!\n'
+    data += f'Welcome {username}!\n\n'
     data += get_help_msg()
     client.send(data.encode('utf-8'))
 
@@ -87,7 +87,7 @@ def LIME(room_name, client):
     data = '200 '
     data += 'Current users:\n'
     for user in client_list:
-        data += '               ' + user['name']
+        data += '               ' + user['name'] + '\n'
 
     client.send(data.encode('utf-8'))
 
@@ -149,7 +149,7 @@ def JOIN(room_name, client):
     # inform other users that this user join the room
     for user in client_list:
         data = '200 '
-        data += f'"{username}" joined the room {room_name}'
+        data += f'\n"{username}" joined the room "{room_name}"'
         user['socket'].send(data.encode('utf-8'))
 
     # room is exist, client not inside that room, add client
@@ -159,7 +159,7 @@ def JOIN(room_name, client):
     current_client['rooms'].append(room_name)
 
     data = '200 '
-    data += f'You have joined the room {room_name}'
+    data += f'You have joined the room "{room_name}"'
     client.send(data.encode('utf-8'))
     
 
@@ -197,7 +197,7 @@ def LEVE(room_name, client):
     # inform other users that this user leave the room
     for user in client_list:
         data = '200 '
-        data += f'"{username}" just leave the room {room_name}'
+        data += f'\n"{username}" just leave the room "{room_name}"'
         user['socket'].send(data.encode('utf-8'))
 
     data = '200 '
@@ -213,8 +213,8 @@ def SEND(msg, client):
     if not (validate_user(client)):
         return 0
 
-    msgs = str.split(msg, ' ')
-    if not (len(msg) == 2 and len(msgs[0]) > 0 and len(msg[1]) > 0 ):
+    msgs = str.split(msg, ' ',1)
+    if not (len(msgs) == 2 and len(msgs[0]) > 0 and len(msgs[1]) > 0 ):
         send_error('400','Invalid parameter, see HELP.', client)
         return 0
 
@@ -240,7 +240,7 @@ def SEND(msg, client):
         if not (user == current_client):
             # send to target
             data = '200 '
-            data += f'{username}@{room_name}: ' + msg
+            data += f'\n{username}@{room_name}: ' + msg
             user['socket'].send(data.encode('utf-8'))
 
     # send to current user
@@ -258,8 +258,8 @@ def PRIV(msg, client):
     if not (validate_user(client)):
         return 0
 
-    msgs = str.split(msg, ' ')
-    if not (len(msg) == 2 and len(msgs[0]) > 0 and len(msg[1]) > 0 ):
+    msgs = str.split(msg, ' ',1)
+    if not (len(msgs) == 2 and len(msgs[0]) > 0 and len(msgs[1]) > 0 ):
         send_error('400','Invalid parameter, see HELP.', client)
         return 0
 
@@ -272,7 +272,7 @@ def PRIV(msg, client):
             # send to target user
             current_username = client_book[client]['name']
             data = '200 '
-            data += f'{current_username} -> You: ' + msg
+            data += f'\n{current_username} -> You: ' + msg
             client_book[client_socket]['socket'].send(data.encode('utf-8'))
 
             # send to current user
@@ -289,7 +289,8 @@ def HELP(msg, client):
     '''Print out command help
 
     '''
-    data = get_help_msg()
+    data = '200 '
+    data += get_help_msg()
     client.send(data.encode('utf-8'))
 
 
@@ -307,13 +308,13 @@ msg_options = {
     'LEVE': LEVE,
     'SEND': SEND,
     'PRIV': PRIV,
-    'help': HELP
+    'HELP': HELP
 }
 
 
 def get_help_msg():
     '''Return command instruction'''
-    msg = '\nUsage: \n' 
+    msg = 'Usage: \n' 
     msg += '       LIRO                   - Listing all rooms\n'
     msg += '       LIME <room name>       - Listing members in a room\n'
     msg += '       ROOM <room name>       - Create a room\n'
@@ -342,7 +343,7 @@ def analyze_msg(msg, client):
     '''A function to analyze the msg and call an appropriate function
         using a function table msg_options
 
-        message format: COMD msg        (length is at leaset 6)
+        message format: COMD msg        (length is at leaset 4)
     '''
     msg = msg.strip()
     if len(msg) < 4: 
@@ -356,17 +357,24 @@ def analyze_msg(msg, client):
             send_error('500', 'Unknown message command.', client)
 
 
-def disconnet_client(input_list, client_count, input):
+def disconnet_client(input_list, input):
     ''' find out who disconnect'''
+    global client_count
 
     print('client #' + str( input_list.index(input)) + ' disconnected.')
     
     # inform clients in a same room who has disconnected
     # TODO
 
+    # clear client stored info
+    room_list = client_book[input]['rooms']
+    for room in room_list:
+        room_book[room]['clients'].remove(client_book[input])
+
+    client_book.pop(input)  # remove client
+
     # close socket conn
     input.close()                   # close socket
-    client_book.pop(input)          # remove client
     input_list.remove(input)        # remove socket
     client_count -= 1
 
@@ -473,7 +481,7 @@ while running:
                 data = input.recv(size)
             except:
                 # couldn't receive data, client disconnects
-                disconnet_client(input_list, client_count, input)
+                disconnet_client(input_list, input)
                 
             if data:
                 # there is any data from client
@@ -489,7 +497,7 @@ while running:
                 # input.send(send_data.encode('utf-8'))
             else:
                 # there is no data, client disconnects
-                disconnet_client(input_list, client_count, input)
+                disconnet_client(input_list, input)
 
                 
 server.close()
