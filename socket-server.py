@@ -120,18 +120,25 @@ def JOIN(room_name, client):
         return 0
 
     client_list = room_book[room_name]['clients']
+    current_client = client_book[client]
+    username = current_client['name']
 
     # room is exist, check if client alread inside
-    if client_book[client] in client_list:
-        username = client_book[client]['name']
+    if current_client in client_list:
         send_error('300',f'Client "{username}" already exist in the room "{room_name}".', client)
         return 0
 
+    # inform other users that this user join the room
+    for user in client_list:
+        data = '200 '
+        data += f'"{username}" joined the room {room_name}'
+        user['socket'].send(data.encode('utf-8'))
+
     # room is exist, client not inside that room, add client
-    client_list.append(client_book[client])
+    client_list.append(current_client)
 
     # add room to client
-    client_book[client]['rooms'].append(room_name)
+    current_client['rooms'].append(room_name)
 
     data = '200 '
     data += f'You have joined the room {room_name}'
@@ -152,18 +159,25 @@ def LEVE(room_name, client):
         return 0
 
     client_list = room_book[room_name]['clients']
+    current_client = client_book[client]
+    username = current_client['name']
 
     # room is exist, check if client inside
-    if not (client_book[client] in client_list):
-        username = client_book[client]['name']
+    if not (current_client in client_list):
         send_error('300',f'Client "{username}" doesn\'t exist in the room "{room_name}".', client)
         return 0
 
     # room is exist, client inside room, remove client
-    room_book[room_name]['clients'].remove(client_book[client])
+    client_list.remove(current_client)
 
     # remove room from client
-    client_book[client]['rooms'].remove(room_name)
+    current_client['rooms'].remove(room_name)
+
+    # inform other users that this user leave the room
+    for user in client_list:
+        data = '200 '
+        data += f'"{username}" just leave the room {room_name}'
+        user['socket'].send(data.encode('utf-8'))
 
     data = '200 '
     data += f'You have leave the room {room_name}'
