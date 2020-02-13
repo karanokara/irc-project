@@ -253,17 +253,17 @@ def SEND(msg, client):
     return 1
 
 
-def PRIV(msg, client):
+def PRIV(msg, sender):
     ''' Send a private message to a client
 
         USAGE: PRIV <username> <msg>
     '''
-    if not (validate_user(client)):
+    if not (validate_user(sender)):
         return 0
 
     msgs = str.split(msg, ' ',1)
     if not (len(msgs) == 2 and len(msgs[0]) > 0 and len(msgs[1]) > 0 ):
-        send_error('400','Invalid parameter, see HELP.', client)
+        send_error('400','Invalid parameter, see HELP.', sender)
         return 0
 
     target_username = msgs[0]
@@ -272,28 +272,68 @@ def PRIV(msg, client):
     # check if user exists
     for client_socket in CLIENT_BOOK:
         if CLIENT_BOOK[client_socket]['name'] == target_username:
-            # send to target user
-            current_username = CLIENT_BOOK[client]['name']
+            # send msg to target user
+            current_username = CLIENT_BOOK[sender]['name']
             data = '200 '
             data += f'\n{current_username} -> You: ' + msg
             CLIENT_BOOK[client_socket]['socket'].send(data.encode('utf-8'))
 
-            # send to current user
+            # send msg to current user
             data = '200 '
             data += f'You -> {target_username}: ' + msg
-            client.send(data.encode('utf-8'))
+            sender.send(data.encode('utf-8'))
             return 1
 
-    send_error('300',f'User "{target_username}" doesn\'t exist', client)
+    send_error('300',f'User "{target_username}" doesn\'t exist', sender)
     return 0
 
 
-def FILE(msg, client):
+def FILE(msg, sender):
     ''' Send a file to a client
 
         USAGE: FILE <username> <filename>
     '''
+    global BUFFER_SIZE
+    
+    if not (validate_user(sender)):
+        return 0
 
+    msgs = str.split(msg, ' ',1)
+    if not (len(msgs) == 2 and len(msgs[0]) > 0 and len(msgs[1]) > 0 ):
+        send_error('400','Invalid parameter, see HELP.', sender)
+        return 0
+
+    receiver_name = msgs[0]
+    filename = msgs[1]
+
+    # check if user exists
+    for client_socket in CLIENT_BOOK:
+        if CLIENT_BOOK[client_socket]['name'] == receiver_name:
+            sender_name = CLIENT_BOOK[sender]['name']
+            receiver = CLIENT_BOOK[client_socket]
+            
+            # receive file
+            try:
+                file_byte = sender.recv(BUFFER_SIZE)
+            except:
+                send_error('101','Failed to send file.', sender)
+                return 0
+
+            # send msg to target user
+            data = '102 '
+            data += f'\nClient "{sender_name}" send you a file "{filename}"'
+            receiver['socket'].send(data.encode('utf-8'))
+            
+            # send file
+            receiver['socket'].send(file_byte)
+            
+            # send msg to current user
+            data = '200 '
+            data += f'You have sent a file "{filename}" to user "{receiver_name}"'
+            sender.send(data.encode('utf-8'))
+            return 1
+
+    send_error('300',f'User "{receiver_name}" doesn\'t exist', sender)
     return 0
     
 
@@ -329,15 +369,16 @@ msg_options = {
 def get_help_msg():
     ''' Return command instruction'''
     msg = 'Usage: \n' 
-    msg += '       LIRO                   - Listing all rooms\n'
-    msg += '       LIME <room name>       - Listing members in a room\n'
-    msg += '       ROOM <room name>       - Create a room\n'
-    msg += '       JOIN <room name>       - Join a room\n'
-    msg += '       lEVE <room name>       - Leave a rooms\n'
-    msg += '       SEND <room name> <msg> - Send message to a room\n'
-    msg += '       PRIV <username> <msg>  - Send private message to a client\n'
-    msg += '       HELP                   - Get command help\n'
-    msg += '       QUIT                   - Quit the application\n'
+    msg += '       LIRO                         - Listing all rooms\n'
+    msg += '       LIME <room name>             - Listing members in a room\n'
+    msg += '       ROOM <room name>             - Create a room\n'
+    msg += '       JOIN <room name>             - Join a room\n'
+    msg += '       lEVE <room name>             - Leave a rooms\n'
+    msg += '       SEND <room name> <msg>       - Send message to a room\n'
+    msg += '       PRIV <username> <msg>        - Send private message to a client\n'
+    msg += '       FILE <username> <filename>   - Send private message to a client\n'
+    msg += '       HELP                         - Get command help\n'
+    msg += '       QUIT                         - Quit the application\n'
 
     return msg
 
@@ -471,8 +512,9 @@ Some data structures:
 
 
 error code:
-100 send file
-200 OK
+101 fail to send file
+102 prepare to receive file
+200 OK msg
 300 something already exist
 400 something invalid
 500 something unknown
@@ -485,7 +527,7 @@ error code:
 host = ''
 # port = int(sys.argv[1])
 port = 2999
-size = 1024 * 100       # accept 100k
+BUFFER_SIZE = 1024 * 100       # accept 100k
 running = 1
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a socket server
 # INPUT_LIST = [server,sys.stdin]     # linux
@@ -530,7 +572,7 @@ while running:
         else:
             # handle input comes from socket conn
             try:
-                data = input.recv(size)
+                data = input.recv(BUFFER_SIZE)
             except:
                 # couldn't receive data, client disconnects
                 disconnet_client(INPUT_LIST, input)

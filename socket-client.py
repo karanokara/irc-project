@@ -33,6 +33,24 @@ def prompt(username):
     print(f'> {username} $ ', end='', flush=True)    # don't go to next line, allow input
 
 
+def analyze_msg(msg, client):
+    ''' Analyze a msg from client
+    '''
+
+    if str.upper(send_data) == 'QUIT\n':
+        client.close()
+        sys.exit('\nYou exit successfully.')
+
+    if str.upper(msg[0:4]) == 'FILE':
+        filename = str.split(str.strip(msg), ' ')
+
+        return 0
+    
+    # send data
+    client.send(send_data.encode('utf-8'))
+
+
+
 def greet_client(client_socket,username):
     ''' send server the name of client'''
     done = 0
@@ -118,11 +136,6 @@ while (1):
             # input is from client keyboard input
             send_data = sys.stdin.readline()
 
-            if send_data == 'quit\n':
-                client.close()
-                sys.exit('\nYou exit successfully.')
-            
-            # send data
-            client.send(send_data.encode('utf-8'))
+            analyze_msg(send_data, client)
 
 
