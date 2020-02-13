@@ -23,7 +23,7 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 host = sys.argv[1]
 port = int(sys.argv[2])
-size = 1024 * 100  # accept 100k
+BUFFER_SIZE = 1024 * 100  # accept 100k
 username = 'client'
 
 
@@ -36,18 +36,86 @@ def prompt(username):
 def analyze_msg(msg, client):
     ''' Analyze a msg from client
     '''
-
+    # Quit the app
     if str.upper(send_data) == 'QUIT\n':
         client.close()
         sys.exit('\nYou exit successfully.')
 
+    # For sending file
     if str.upper(msg[0:4]) == 'FILE':
-        filename = str.split(str.strip(msg), ' ')
+        params = str.split(str.strip(msg), ' ')
+        if not (len(params) == 3):
+            print('Error: Invalid parameter, see HELP.')
+            return 0
+        
+        filename = params[2]
+        try:
+            file_stream = open(filename,'rb')
+        except:
+            print('Error: File doesn\'t exist.')
+            return 0
+        
+        file_byte = file_stream.read(BUFFER_SIZE)
+        file_stream.close()
+        
+        client.send(msg.encode('utf-8'))  # send msg
+        
+        # receive server response
+        try:
+            server_response = client.recv(BUFFER_SIZE)
+        except:
+            print('Error: Failed to send file.')
+            return 0
+
+        # if server ready to receive the file
+        if(server_response.decode('utf-8') == '100'):                
+            # send file
+            client.send(file_byte)
+        else:
+            print('Error: Failed to send file.')
 
         return 0
     
     # send data
-    client.send(send_data.encode('utf-8'))
+    client.send(msg.encode('utf-8'))
+
+
+def analyze_res(res_data,client):
+    ''' Analyze a response from server
+    '''
+    res_data = res_data.decode('utf-8')
+    status = res_data[0:3]      # get status code
+    res_data = res_data[4:]     # the leaving msg
+
+    # continue to rend a file
+    if status == '102':
+
+        # let server send the file here
+        client.send('100'.encode('utf-8'))
+
+        try:
+            msgs = str.split(res_data, ' ', 1)
+            filename = msgs[0]
+            res_data = msgs[1]
+            file_byte = client.recv(BUFFER_SIZE)
+        except:
+            print('Failed to receive the file.')
+            return 0
+
+        # create the file
+        filename = 'receive_' + filename
+        file_stream = open(filename, 'wb')
+        file_stream.write(file_byte)
+        file_stream.close()
+        
+    # print data in a new line
+    print()
+    print(res_data)
+    print()
+
+    prompt(username)
+    # print ('received', len(res_data), ' bytes')
+
 
 
 
@@ -62,7 +130,7 @@ def greet_client(client_socket,username):
         client_socket.send(send_data.encode('utf-8'))
 
         try:
-            res_data = client_socket.recv(size).decode('utf-8').rstrip()
+            res_data = client_socket.recv(BUFFER_SIZE).decode('utf-8').rstrip()
         except:
             # can't receive from server
             sys.exit('\nDisconnected from the server. ')
@@ -111,23 +179,16 @@ while (1):
 
             # receive data
             try:
-                res_data = input.recv(size)
+                res_data = input.recv(BUFFER_SIZE)
             except:
                 # can't receive from server
                 sys.exit('\nDisconnected from the server.')
 
             if res_data:
-
-                status = res_data[0:3]      # get status code
-                res_data = res_data[4:]     # the leaving msg
-
-                # print data in a new line
-                print()
-                print(res_data.decode('utf-8'))
-                print()
-
-                prompt(username)
-                # print ('received', len(res_data), ' bytes')
+                
+                # analyze the response data
+                analyze_res(res_data, client)
+                
             else:
                 # there is no data, server is disconnected
                 sys.exit('\nDisconnected from the server.')

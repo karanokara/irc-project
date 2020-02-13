@@ -40,7 +40,7 @@ def USER(username, client):
             return 0
 
     # inform other users
-    broadcast([], f'Client "{username}" login.')
+    broadcast([], f'\nClient "{username}" login.')
 
     # username not exist, add it to client book
     CLIENT_BOOK[client] = {
@@ -312,20 +312,35 @@ def FILE(msg, sender):
             sender_name = CLIENT_BOOK[sender]['name']
             receiver = CLIENT_BOOK[client_socket]
             
-            # receive file
+            # let sender send the file here
+            sender.send('100'.encode('utf-8'))
+
+            # receive file from sender
             try:
                 file_byte = sender.recv(BUFFER_SIZE)
             except:
                 send_error('101','Failed to send file.', sender)
                 return 0
 
-            # send msg to target user
+            # send msg to receiver for preparation
             data = '102 '
-            data += f'\nClient "{sender_name}" send you a file "{filename}"'
+            data += f'{filename} \nClient "{sender_name}" send you a file "{filename}"'
             receiver['socket'].send(data.encode('utf-8'))
-            
-            # send file
-            receiver['socket'].send(file_byte)
+
+            # receive receiver's response
+            try:
+                receiver_response = receiver['socket'].recv(BUFFER_SIZE)
+            except:
+                send_error('101','Failed to send file.', sender)
+                return 0
+
+            # if receiver ready to receive the file
+            if(receiver_response.decode('utf-8') == '100'):                
+                # send file
+                receiver['socket'].send(file_byte)
+            else:
+                send_error('101','Failed to send file.', sender)
+                return 0
             
             # send msg to current user
             data = '200 '
@@ -431,7 +446,7 @@ def disconnet_client(INPUT_LIST, input):
     CLIENT_BOOK.pop(input)
 
     # inform other users
-    broadcast([], f'Client "{username}" logout.')
+    broadcast([], f'\nClient "{username}" logout.')
 
     # close socket conn
     input.close()                   # close socket
