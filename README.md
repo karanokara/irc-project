@@ -9,22 +9,22 @@ IRC or Internet Relay Chat is an application that lets multiple users communicat
 2. In charge of all of the protocol specifications and functionality of IRC application. 
 
 3. Basic functionalities:
-    + supprot mulitple client connecting to server as a user
-    + list rooms available
-    + list members of a room
-    + create a room
-    + join multiple rooms
-    + leave a room
-    + send message to a specific room
-    + private message
-    + client disconnect from server
-    + server can disconnect 
-    + client, server handle crash from each other
+    + [x] supprot mulitple client connecting to server as a user
+    + [x] list rooms available
+    + [x] list members of a room
+    + [x] create a room
+    + [x] join multiple rooms
+    + [x] leave a room
+    + [x] send message to a specific room
+    + [x] private message
+    + [x] client disconnect from server
+    + [x] server can disconnect 
+    + [x] client, server handle crash from each other
 
 4. Other features:
-    - File transfer
-    - Secure messaging
-    + Cloud connected server
+    + [x] File transfer
+    - [ ] Secure messaging
+    + [x] Cloud connected server
     - etc
 
 5. Refer to the IRC project grading criteria

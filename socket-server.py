@@ -324,7 +324,8 @@ def FILE(msg, sender):
 
             # send msg to receiver for preparation
             data = '102 '
-            data += f'{filename} \nClient "{sender_name}" send you a file "{filename}"'
+            file_size = len(file_byte)
+            data += f'{filename} {file_size} \nClient "{sender_name}" send you a file "{filename}"'
             receiver['socket'].send(data.encode('utf-8'))
 
             # receive receiver's response

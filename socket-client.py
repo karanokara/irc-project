@@ -45,34 +45,43 @@ def analyze_msg(msg, client):
     if str.upper(msg[0:4]) == 'FILE':
         params = str.split(str.strip(msg), ' ')
         if not (len(params) == 3):
-            print('Error: Invalid parameter, see HELP.')
+            print('\nError: Invalid parameter, see HELP.\n')
+            prompt(username)
             return 0
         
         filename = params[2]
         try:
             file_stream = open(filename,'rb')
         except:
-            print('Error: File doesn\'t exist.')
+            print('\nError: File doesn\'t exist.\n')
+            prompt(username)
             return 0
         
-        file_byte = file_stream.read(BUFFER_SIZE)
-        file_stream.close()
         
         client.send(msg.encode('utf-8'))  # send msg
         
         # receive server response
         try:
-            server_response = client.recv(BUFFER_SIZE)
+            server_response = client.recv(BUFFER_SIZE).decode('utf-8')
         except:
-            print('Error: Failed to send file.')
+            print('\nError: Failed to send file. server no response\n')
+            prompt(username)
             return 0
 
         # if server ready to receive the file
-        if(server_response.decode('utf-8') == '100'):                
+        if(server_response[0:3] == '100'):      
+            # prepare file
+            file_byte = file_stream.read(BUFFER_SIZE)
+            file_stream.close()
+        
             # send file
             client.send(file_byte)
         else:
-            print('Error: Failed to send file.')
+            print()
+            print(server_response[4:])
+            print()
+            prompt(username)
+
 
         return 0
     
@@ -94,10 +103,14 @@ def analyze_res(res_data,client):
         client.send('100'.encode('utf-8'))
 
         try:
-            msgs = str.split(res_data, ' ', 1)
+            msgs = str.split(res_data, ' ', 2)
             filename = msgs[0]
-            res_data = msgs[1]
+            file_size = msgs[1]
+            res_data = msgs[2]
             file_byte = client.recv(BUFFER_SIZE)
+            while len(file_byte) < int(file_size):
+                file_byte += client.recv(BUFFER_SIZE)
+
         except:
             print('Failed to receive the file.')
             return 0
@@ -185,7 +198,6 @@ while (1):
                 sys.exit('\nDisconnected from the server.')
 
             if res_data:
-                
                 # analyze the response data
                 analyze_res(res_data, client)
                 
