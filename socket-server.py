@@ -275,7 +275,7 @@ def PRIV(msg, sender):
             # send msg to target user
             current_username = CLIENT_BOOK[sender]['name']
             data = '200 '
-            data += f'\n{current_username} -> You: ' + msg
+            data += f'\nPrivate msg from {current_username}: ' + msg
             CLIENT_BOOK[client_socket]['socket'].send(data.encode('utf-8'))
 
             # send msg to current user
@@ -352,6 +352,54 @@ def FILE(msg, sender):
     send_error('300',f'User "{receiver_name}" doesn\'t exist', sender)
     return 0
     
+def USEK():
+    ''' Use a key for secure messaging
+        This is a client-side method now
+        USAGE: USEK <key string>
+    '''
+    return 0
+
+
+def SECU(msg, sender):
+    ''' Send a secure message to a client
+
+        client should have encrypted the msg before sending 
+        to here
+
+        This function look like the same as PRIV
+        except it is using status code 700
+        to instruct receiver to open it using key
+
+        USAGE: SECU <username> <msg>
+    '''
+    if not (validate_user(sender)):
+        return 0
+
+    msgs = str.split(msg, ' ',1)
+    if not (len(msgs) == 2 and len(msgs[0]) > 0 and len(msgs[1]) > 0 ):
+        send_error('400','Invalid parameter, see HELP.', sender)
+        return 0
+
+    target_username = msgs[0]
+    msg = msgs[1]
+
+    # check if user exists
+    for client_socket in CLIENT_BOOK:
+        if CLIENT_BOOK[client_socket]['name'] == target_username:
+            # send msg to target user
+            current_username = CLIENT_BOOK[sender]['name']
+            data = f'700 {current_username} {msg}'
+            CLIENT_BOOK[client_socket]['socket'].send(data.encode('utf-8'))
+
+            # send msg to current user
+            data = '200 '
+            data += f'You -> {target_username}: ' + msg
+            sender.send(data.encode('utf-8'))
+            return 1
+
+    send_error('300',f'User "{target_username}" doesn\'t exist', sender)
+    return 0
+
 
 def HELP(msg, client):
     ''' Print out command help
@@ -378,6 +426,8 @@ msg_options = {
     'SEND': SEND,
     'PRIV': PRIV,
     'FILE': FILE,
+    'USEK': USEK,
+    'SECU': SECU,
     'HELP': HELP
 }
 
@@ -393,6 +443,8 @@ def get_help_msg():
     msg += '       SEND <room name> <msg>       - Send message to a room\n'
     msg += '       PRIV <username> <msg>        - Send private message to a client\n'
     msg += '       FILE <username> <filename>   - Send private message to a client\n'
+    msg += '       USEK <key string>            - Using a key for secure messaging\n'
+    msg += '       SECU <username> <msg>        - Send secure message to a client\n'
     msg += '       HELP                         - Get command help\n'
     msg += '       QUIT                         - Quit the application\n'
 
@@ -434,20 +486,25 @@ def disconnet_client(INPUT_LIST, input):
     '''
     global CLIENT_COUNT
 
-    username = CLIENT_BOOK[input]['name']
+    try:
+        username = CLIENT_BOOK[input]['name']
+        print(f'client "{username}" disconnected.')
 
-    print(f'client "{username}" disconnected.')
+        # clear client info from room book
+        room_list = CLIENT_BOOK[input]['rooms']
+        for room in room_list:
+            ROOM_BOOK[room]['clients'].remove(CLIENT_BOOK[input])
 
-    # clear client stored info
-    room_list = CLIENT_BOOK[input]['rooms']
-    for room in room_list:
-        ROOM_BOOK[room]['clients'].remove(CLIENT_BOOK[input])
+        # remove client
+        CLIENT_BOOK.pop(input)
 
-    # remove client
-    CLIENT_BOOK.pop(input)
+        # inform other users
+        broadcast([], f'\nClient "{username}" logout.')
 
-    # inform other users
-    broadcast([], f'\nClient "{username}" logout.')
+    except:
+        # client not login, not in the book
+        print('client #' + str( INPUT_LIST.index(input)) + ' disconnected.')
+
 
     # close socket conn
     input.close()                   # close socket
@@ -528,13 +585,15 @@ Some data structures:
 
 
 error code:
-101 fail to send file
+100 tell sender to send file here
+101 fail to send file to receiver
 102 prepare to receive file
 200 OK msg
 300 something already exist
 400 something invalid
 500 something unknown
-600 client not valid
+600 client is not valid
+700 sender send a secure msg
 
 '''
 

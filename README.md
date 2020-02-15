@@ -23,7 +23,7 @@ IRC or Internet Relay Chat is an application that lets multiple users communicat
 
 4. Other features:
     + [x] File transfer
-    - [ ] Secure messaging
+    + [x] Secure messaging
     + [x] Cloud connected server
     - etc
 
@@ -38,16 +38,22 @@ IRC or Internet Relay Chat is an application that lets multiple users communicat
 
 ## Program
 
+###### Install
+
+``` py
+pip install -r requirements.txt
+```
+
 ###### server
 
-```
+``` py
 python3 socket-server.py <PORT>
 python socket-server.py <PORT>
 ```
 
 ###### client
 
-```
+``` py
 python3 socket-client.py <HOST> <PORT>
 python socket-client.py <HOST> <PORT>
 ```

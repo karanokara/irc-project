@@ -10,10 +10,18 @@ EXAMPLE: python socket-client.py localhost 2999
 import socket   # the socket API to creat a "door"
 import sys
 import select  # supports asynchronous I/O on multiple file descriptors
+import base64
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from Crypto import Random
 
 if len(sys.argv) < 3:
     print ("USAGE: python3 socket-client.py <HOST> <PORT>")
     sys.exit(0)
+
+
+############################# Global Variables ###################################
+
 
 # A client socket
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,10 +29,58 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # conn timeout to 5 seconds
 # client.settimeout(5)
 
-host = sys.argv[1]
-port = int(sys.argv[2])
-BUFFER_SIZE = 1024 * 100  # accept 100k
-username = 'client'
+HOST = sys.argv[1]
+PORT = int(sys.argv[2])
+BUFFER_SIZE = 1024 * 100    # accept 100k
+USERNAME = 'client'
+KEY = ''                    # a key string use to encrypt/decrypt msg
+
+
+############################ User functions ########################################
+
+
+
+def encrypt(key, source, encode=True):
+    ''' Encryp a string using CBC encryption 
+        with a key
+
+        Arg:
+        key - byte string
+        sourece - byte string
+
+        return:
+        encoded string
+    '''
+    key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
+    IV = Random.new().read(AES.block_size)  # generate IV
+    encryptor = AES.new(key, AES.MODE_CBC, IV)
+    padding = AES.block_size - len(source) % AES.block_size  # calculate needed padding
+    source += bytes([padding]) * padding  # Python 2.x: source += chr(padding) * padding
+    data = IV + encryptor.encrypt(source)  # store the IV at the beginning and encrypt
+    return base64.b64encode(data).decode("latin-1") if encode else data
+
+
+def decrypt(key, source, decode=True):
+    ''' Decryp a string using CBC encryption 
+        with a key
+
+        Arg:
+        key - byte string
+        sourece - encoded string
+
+        return:
+        byte string
+    '''
+    if decode:
+        source = base64.b64decode(source.encode("latin-1"))
+    key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
+    IV = source[:AES.block_size]  # extract the IV from the beginning
+    decryptor = AES.new(key, AES.MODE_CBC, IV)
+    data = decryptor.decrypt(source[AES.block_size:])  # decrypt
+    padding = data[-1]  # pick the padding value from the end; Python 2.x: ord(data[-1])
+    if data[-padding:] != bytes([padding]) * padding:  # Python 2.x: chr(padding) * padding
+        raise ValueError("Invalid padding...")
+    return data[:-padding]  # remove the padding
 
 
 def prompt(username):
@@ -37,16 +93,16 @@ def analyze_msg(msg, client):
     ''' Analyze a msg from client
     '''
     # Quit the app
-    if str.upper(send_data) == 'QUIT\n':
+    if str.upper(msg[0:4]) == 'QUIT':
         client.close()
         sys.exit('\nYou exit successfully.')
 
-    # For sending file
+    # Sending a file
     if str.upper(msg[0:4]) == 'FILE':
         params = str.split(str.strip(msg), ' ')
         if not (len(params) == 3):
             print('\nError: Invalid parameter, see HELP.\n')
-            prompt(username)
+            prompt(USERNAME)
             return 0
         
         filename = params[2]
@@ -54,7 +110,7 @@ def analyze_msg(msg, client):
             file_stream = open(filename,'rb')
         except:
             print('\nError: File doesn\'t exist.\n')
-            prompt(username)
+            prompt(USERNAME)
             return 0
         
         
@@ -65,11 +121,11 @@ def analyze_msg(msg, client):
             server_response = client.recv(BUFFER_SIZE).decode('utf-8')
         except:
             print('\nError: Failed to send file. server no response\n')
-            prompt(username)
+            prompt(USERNAME)
             return 0
 
         # if server ready to receive the file
-        if(server_response[0:3] == '100'):      
+        if(server_response[0:3] == '100'):
             # prepare file
             file_byte = file_stream.read(BUFFER_SIZE)
             file_stream.close()
@@ -80,12 +136,41 @@ def analyze_msg(msg, client):
             print()
             print(server_response[4:])
             print()
-            prompt(username)
-
+            prompt(USERNAME)
 
         return 0
-    
-    # send data
+
+    # Using key on secure message
+    if str.upper(msg[0:4]) == 'USEK':
+        params = str.split(str.strip(msg), ' ', 1)
+        key_str = params[1]
+        use_key(key_str)
+        print(f'\nYou are using key: {key_str}\n')
+        prompt(USERNAME)
+        return 0
+
+    # Send a secure msg
+    if str.upper(msg[0:4]) == 'SECU':
+        params = str.split(str.strip(msg), ' ', 2)
+        if not (len(params) == 3):
+            print('\nError: Invalid parameter, see HELP.\n')
+            prompt(USERNAME)
+            return 0
+        
+        # user don't have a key, fail to send secure msg
+        if (len(KEY) == 0):
+            print('\nError: You don\'t have key now, use USEK.\n')
+            prompt(USERNAME)
+            return 0
+
+        receiver_name = params[1]
+        secure_msg = encrypt(KEY, params[2].encode('utf-8'))
+        msg = f'SECU {receiver_name} {secure_msg}'
+        client.send(msg.encode('utf-8'))
+        return 0
+
+
+    # Just send data
     client.send(msg.encode('utf-8'))
 
 
@@ -96,7 +181,7 @@ def analyze_res(res_data,client):
     status = res_data[0:3]      # get status code
     res_data = res_data[4:]     # the leaving msg
 
-    # continue to rend a file
+    # receive a file
     if status == '102':
 
         # let server send the file here
@@ -120,19 +205,43 @@ def analyze_res(res_data,client):
         file_stream = open(filename, 'wb')
         file_stream.write(file_byte)
         file_stream.close()
-        
+
+    # receive a secure msg
+    if status == '700':
+        params = str.split(res_data, ' ', 1)
+        sender_name = params[0]
+        encrypted_msg = params[1]
+
+        # try to use a key to decrypt it
+        # if client already use a key
+        if not (len(KEY) == 0):
+            decrypted_msg = decrypt(KEY, encrypted_msg).decode('utf-8')
+            res_data = f'\nUser "{sender_name}" send you secure msg: {decrypted_msg}'
+        else:
+            # otherwise, just display the secure msg
+            res_data = f'\nUser "{sender_name}" send you secure msg: {encrypted_msg}'
+            res_data += '\nNote: You don\'t have a key now, msg is encrypted.'
+    
+
     # print data in a new line
     print()
     print(res_data)
     print()
 
-    prompt(username)
+    prompt(USERNAME)
     # print ('received', len(res_data), ' bytes')
 
 
+def use_key(key_str):
+    ''' A function to manage keys 
+    '''
+    global KEY
+
+    KEY = key_str.encode('utf-8')
+    return 0
 
 
-def greet_client(client_socket,username):
+def greet_client(client_socket):
     ''' send server the name of client'''
     done = 0
 
@@ -162,17 +271,22 @@ def greet_client(client_socket,username):
     return username
 
 
+
+
+############################ Program begin ########################################
+
+
 # try initiate conn on a socket
 try:
     print('Connecting...')
-    client.connect((host, port))
+    client.connect((HOST, PORT))
 except:
-    sys.exit(f'Error: Fail to connect to host: {host} on port: {port}.')
+    sys.exit(f'Error: Fail to connect to host: {HOST} on port: {PORT}.')
 
 print(f'Connected successfully.')
 
 # greet client to the server
-username = greet_client(client, username)
+USERNAME = greet_client(client)
 
 
 # a list of input steams
