@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 '''
 A socket server that handle connecting clients
 
@@ -14,13 +14,11 @@ import select   # handle multiple clients at a time.
 import sys
 
 
-# if len(sys.argv) < 2:
-#     print ("USAGE:   echo_server_sockets.py <PORT>")
-#     sys.exit(0)
+if len(sys.argv) < 2:
+    sys.exit("USAGE: python3 socket-server.py <PORT>")
 
 
-
-''' --------------------- Message functions ---------------------------- '''
+############################# Message functions ###################################
 
 
 def USER(username, client):
@@ -53,6 +51,7 @@ def USER(username, client):
     data += f'Welcome {username}!\n\n'
     data += get_help_msg()
     client.send(data.encode('utf-8'))
+    return 0
 
 
 def LIRO(msg, client):
@@ -71,6 +70,7 @@ def LIRO(msg, client):
     else:
         data += 'There is no rooms.'        
     client.send(data.encode('utf-8'))
+    return 0
 
 
 def LIME(room_name, client):
@@ -97,6 +97,7 @@ def LIME(room_name, client):
         data += '               ' + user['name'] + '\n'
 
     client.send(data.encode('utf-8'))
+    return 0
 
 
 def ROOM(room_name, client):
@@ -126,6 +127,7 @@ def ROOM(room_name, client):
     data = '200 '
     data += f'Room "{room_name}" successfully created.'
     client.send(data.encode('utf-8'))
+    return 0
 
 
 def JOIN(room_name, client):
@@ -166,6 +168,7 @@ def JOIN(room_name, client):
     data = '200 '
     data += f'You have joined the room "{room_name}"'
     client.send(data.encode('utf-8'))
+    return 0
     
 
 def LEVE(room_name, client):
@@ -206,7 +209,8 @@ def LEVE(room_name, client):
     data = '200 '
     data += f'You have leave the room {room_name}'
     client.send(data.encode('utf-8'))
-    
+    return 0
+
 
 def SEND(msg, client):
     ''' Send a message to a room
@@ -250,7 +254,7 @@ def SEND(msg, client):
     data = '200 '
     data += f'You@{room_name}: ' + msg
     client.send(data.encode('utf-8'))
-    return 1
+    return 0
 
 
 def PRIV(msg, sender):
@@ -280,7 +284,7 @@ def PRIV(msg, sender):
 
             # send msg to current user
             data = '200 '
-            data += f'You -> {target_username}: ' + msg
+            data += f'You send private msg to "{target_username}": ' + msg
             sender.send(data.encode('utf-8'))
             return 1
 
@@ -298,13 +302,14 @@ def FILE(msg, sender):
     if not (validate_user(sender)):
         return 0
 
-    msgs = str.split(msg, ' ',1)
-    if not (len(msgs) == 2 and len(msgs[0]) > 0 and len(msgs[1]) > 0 ):
+    msgs = str.split(msg, ' ',2)
+    if not (len(msgs) == 3 and len(msgs[0]) > 0 and len(msgs[1]) > 0 and len(msg[2]) > 0):
         send_error('400','Invalid parameter, see HELP.', sender)
         return 0
 
     receiver_name = msgs[0]
     filename = msgs[1]
+    file_size = msgs[2]
 
     # check if user exists
     for client_socket in CLIENT_BOOK:
@@ -318,14 +323,16 @@ def FILE(msg, sender):
             # receive file from sender
             try:
                 file_byte = sender.recv(BUFFER_SIZE)
+                while len(file_byte) < int(file_size):
+                    file_byte += sender.recv(BUFFER_SIZE)
             except:
                 send_error('101','Failed to send file.', sender)
                 return 0
 
             # send msg to receiver for preparation
             data = '102 '
-            file_size = len(file_byte)
-            data += f'{filename} {file_size} \nClient "{sender_name}" send you a file "{filename}"'
+            receiver_filename = 'receive_' + filename
+            data += f'{receiver_filename} {file_size} \nClient "{sender_name}" send you a file "{receiver_filename}"'
             receiver['socket'].send(data.encode('utf-8'))
 
             # receive receiver's response
@@ -345,16 +352,18 @@ def FILE(msg, sender):
             
             # send msg to current user
             data = '200 '
-            data += f'You have sent a file "{filename}" to user "{receiver_name}"'
+            data += f'You sent a file "{filename}" to user "{receiver_name}"'
             sender.send(data.encode('utf-8'))
             return 1
 
     send_error('300',f'User "{receiver_name}" doesn\'t exist', sender)
     return 0
     
+
 def USEK():
     ''' Use a key for secure messaging
         This is a client-side method now
+        
         USAGE: USEK <key string>
     '''
     return 0
@@ -393,7 +402,7 @@ def SECU(msg, sender):
 
             # send msg to current user
             data = '200 '
-            data += f'You -> {target_username}: ' + msg
+            data += f'You sent secure msg to "{target_username}": ' + msg
             sender.send(data.encode('utf-8'))
             return 1
 
@@ -409,10 +418,10 @@ def HELP(msg, client):
     data = '200 '
     data += get_help_msg()
     client.send(data.encode('utf-8'))
+    return 0
 
 
-
-''' --------------------- Tool functions ---------------------------- '''
+############################# Tool functions ###################################
 
 
 # a function table
@@ -559,9 +568,8 @@ def broadcast(rooms, msg):
 
 
 
-
-
-''' --------------------- Program begin here ---------------------------- 
+############################# Program begin here ###################################
+'''
 Some data structures:
 
     client_info = {
@@ -600,13 +608,13 @@ error code:
 
 # globa variables:
 host = ''
-# port = int(sys.argv[1])
-port = 2999
+port = int(sys.argv[1])
+# port = 2999
 BUFFER_SIZE = 1024 * 100       # accept 100k
 running = 1
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a socket server
-# INPUT_LIST = [server,sys.stdin]     # linux
-INPUT_LIST = [server]               # window
+INPUT_LIST = [server,sys.stdin]     # linux
+# INPUT_LIST = [server]               # window
 CLIENT_COUNT = 0
 CLIENT_BOOK = {}
 ROOM_BOOK = {}
@@ -615,7 +623,7 @@ ROOM_BOOK = {}
 # bind local source port to socket
 server.bind((host,port))
 
-# enable socket to accept N connections
+# enable socket to accept 5 connections
 server.listen(5)
 
 print('Server is now running ...')
@@ -631,9 +639,9 @@ while running:
             # handle the server socket
             
             new_socket_conn, ip_addr = server.accept()
-
+            socket_fd = new_socket_conn.fileno()
             CLIENT_COUNT += 1
-            print('client #' + str(CLIENT_COUNT) + ' is at', ip_addr)
+            print('client ' + str(socket_fd) + ' connected from ', ip_addr)
 
             # add new client to the listenning list
             INPUT_LIST.append(new_socket_conn)
@@ -641,9 +649,12 @@ while running:
         elif input == sys.stdin:
             # handle standard input
 
-            junk = sys.stdin.readline()
-            running = 0
-            break
+            user_input = sys.stdin.readline()
+
+             # Quit the app with a 'q'
+            if str.upper(user_input[0:1]) == 'Q':
+                running = 0
+
         else:
             # handle input comes from socket conn
             try:
@@ -657,7 +668,8 @@ while running:
                 data = data.decode('utf-8').rstrip()
                 
                 # log the msg
-                print('Received data from client #' + str( INPUT_LIST.index(input)) + ':', data)
+                socket_fd = input.fileno()
+                print('Received data from client ' + str(socket_fd) + ':', data)
                 
                 # analyze the msg and call a appropriate function to handle it
                 analyze_msg(data, input)
@@ -670,3 +682,4 @@ while running:
 
                 
 server.close()
+print('Exited successfully.')

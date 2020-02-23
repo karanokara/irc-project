@@ -1,6 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 '''
-A socket client that can make a connection
+A socket client that can make a connection to a socket server
 
 USAGE:   python3 socket-client.py <HOST> <PORT>
 USAGE:   python socket-client.py <HOST> <PORT>
@@ -9,15 +9,15 @@ EXAMPLE: python socket-client.py localhost 2999
 '''
 import socket   # the socket API to creat a "door"
 import sys
-import select  # supports asynchronous I/O on multiple file descriptors
+import select   # supports asynchronous I/O on multiple file descriptors
 import base64
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 from Crypto import Random
 
+
 if len(sys.argv) < 3:
-    print ("USAGE: python3 socket-client.py <HOST> <PORT>")
-    sys.exit(0)
+    sys.exit("USAGE: python3 socket-client.py <HOST> <PORT>")
 
 
 ############################# Global Variables ###################################
@@ -27,16 +27,16 @@ if len(sys.argv) < 3:
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # conn timeout to 5 seconds
-# client.settimeout(5)
+client.settimeout(5)
 
 HOST = sys.argv[1]
 PORT = int(sys.argv[2])
 BUFFER_SIZE = 1024 * 100    # accept 100k
-USERNAME = 'client'
+USERNAME = 'client'         # default username
 KEY = ''                    # a key string use to encrypt/decrypt msg
 
 
-############################ User functions ########################################
+############################ Tool functions ########################################
 
 
 
@@ -99,7 +99,8 @@ def analyze_msg(msg, client):
 
     # Sending a file
     if str.upper(msg[0:4]) == 'FILE':
-        params = str.split(str.strip(msg), ' ')
+        msg = str.strip(msg)
+        params = str.split(msg, ' ')
         if not (len(params) == 3):
             print('\nError: Invalid parameter, see HELP.\n')
             prompt(USERNAME)
@@ -107,13 +108,18 @@ def analyze_msg(msg, client):
         
         filename = params[2]
         try:
-            file_stream = open(filename,'rb')
+            file_stream = open(filename, 'rb')
+            
+            # read file
+            file_byte = file_stream.read(BUFFER_SIZE)
+            file_stream.close()
         except:
             print('\nError: File doesn\'t exist.\n')
             prompt(USERNAME)
             return 0
         
-        
+        file_size = len(file_byte)
+        msg += ' ' + str(file_size)
         client.send(msg.encode('utf-8'))  # send msg
         
         # receive server response
@@ -126,10 +132,6 @@ def analyze_msg(msg, client):
 
         # if server ready to receive the file
         if(server_response[0:3] == '100'):
-            # prepare file
-            file_byte = file_stream.read(BUFFER_SIZE)
-            file_stream.close()
-        
             # send file
             client.send(file_byte)
         else:
@@ -201,7 +203,6 @@ def analyze_res(res_data,client):
             return 0
 
         # create the file
-        filename = 'receive_' + filename
         file_stream = open(filename, 'wb')
         file_stream.write(file_byte)
         file_stream.close()
@@ -215,8 +216,13 @@ def analyze_res(res_data,client):
         # try to use a key to decrypt it
         # if client already use a key
         if not (len(KEY) == 0):
-            decrypted_msg = decrypt(KEY, encrypted_msg).decode('utf-8')
-            res_data = f'\nUser "{sender_name}" send you secure msg: {decrypted_msg}'
+            try:
+                decrypted_msg = decrypt(KEY, encrypted_msg).decode('utf-8')
+                res_data = f'\nUser "{sender_name}" send you secure msg: {decrypted_msg}'
+            except:
+                # fail to decrypt the msg using current key 
+                res_data = f'\nUser "{sender_name}" send you secure msg: {encrypted_msg}'
+                res_data += '\nError: Failed to decrypt the msg using current key.'
         else:
             # otherwise, just display the secure msg
             res_data = f'\nUser "{sender_name}" send you secure msg: {encrypted_msg}'
@@ -287,7 +293,6 @@ print(f'Connected successfully.')
 
 # greet client to the server
 USERNAME = greet_client(client)
-
 
 # a list of input steams
 input_list = [client, sys.stdin]    # if executed in linux

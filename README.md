@@ -3,7 +3,9 @@
 
 IRC or Internet Relay Chat is an application that lets multiple users communicate via text messages with each other in common "virtual" rooms.
 
-## Tasks
+This program is a CLI(command line interface)-based application.
+
+## Overview
 1. Implementing an IRCclient and server from scratch in this project using whatever programming language.
 
 2. In charge of all of the protocol specifications and functionality of IRC application. 
@@ -36,7 +38,7 @@ IRC or Internet Relay Chat is an application that lets multiple users communicat
 8. An example RFC is the IRC RFC 1459: https://tools.ietf.org/html/rfc1459
 
 
-## Program
+## Run the program
 
 ###### Install
 
@@ -44,14 +46,14 @@ IRC or Internet Relay Chat is an application that lets multiple users communicat
 pip install -r requirements.txt
 ```
 
-###### server
+###### Run server
 
 ``` py
 python3 socket-server.py <PORT>
 python socket-server.py <PORT>
 ```
 
-###### client
+###### Run client
 
 ``` py
 python3 socket-client.py <HOST> <PORT>
