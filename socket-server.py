@@ -12,7 +12,7 @@ EXAMPLE: python socket-server.py 2999
 import socket
 import select   # handle multiple clients at a time.
 import sys
-
+import os
 
 if len(sys.argv) < 2:
     sys.exit("USAGE: python3 socket-server.py <PORT>")
@@ -331,7 +331,7 @@ def FILE(msg, sender):
 
             # send msg to receiver for preparation
             data = '102 '
-            receiver_filename = 'receive_' + filename
+            receiver_filename = 'receive_' + os.path.basename(filename)
             data += f'{receiver_filename} {file_size} \nClient "{sender_name}" send you a file "{receiver_filename}"'
             receiver['socket'].send(data.encode('utf-8'))
 
