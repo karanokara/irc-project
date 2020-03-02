@@ -60,3 +60,9 @@ python3 socket-client.py <HOST> <PORT>
 python socket-client.py <HOST> <PORT>
 ```
 
+###### Connect to current server
+
+``` py
+python3 socket-client.py irc.karanokara.com 29
+```
+
